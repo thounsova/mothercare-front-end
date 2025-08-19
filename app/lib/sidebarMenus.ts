@@ -1,5 +1,6 @@
-// lib/sidebarMenus.ts
-export const sidebarMenus = {
+export type Role = "admin" | "educator" | "parent";
+
+export const sidebarMenus: Record<Role, { name: string; path: string }[]> = {
   admin: [
     { name: "Dashboard", path: "/dashboard" },
     { name: "Resident", path: "/dashboard/resident" },
@@ -14,5 +15,7 @@ export const sidebarMenus = {
     { name: "Assessment", path: "/dashboard/assessment" },
     { name: "Fields", path: "/dashboard/fields" },
   ],
-  parent: [{ name: "Kids", path: "/dashboard/kids" }],
+  parent: [
+    { name: "Kids", path: "/dashboard/kids" },
+  ],
 };
