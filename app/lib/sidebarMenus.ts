@@ -14,7 +14,5 @@ export const sidebarMenus = {
     { name: "Assessment", path: "/dashboard/assessment" },
     { name: "Fields", path: "/dashboard/fields" },
   ],
-  parent: [
-    { name: "Kids", path: "/dashboard/kids" },
-  ],
+  parent: [{ name: "Kids", path: "/dashboard/kids" }],
 };
