@@ -46,13 +46,8 @@ export default function Sidebar({ role, collapsed, setCollapsed }: SidebarProps)
   return (
     <>
       {/* Mobile toggle */}
-      <button
-        className="md:hidden fixed top-4 left-4 z-30 p-2 rounded-lg bg-blue-200 shadow-md"
-        onClick={() => setOpenMobile(!openMobile)}
-        aria-label="Toggle Sidebar"
-      >
-        {openMobile ? <X size={24} /> : <Menu size={24} />}
-      </button>
+ 
+
 
       {/* Sidebar */}
       <aside

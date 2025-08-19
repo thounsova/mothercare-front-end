@@ -5,7 +5,7 @@ import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
-  const role: "admin" | "educator" | "parent" = "educator";
+  const role: "admin" | "educator" | "parent" = "admin";
   const [collapsed, setCollapsed] = useState(false);
 
   return (
