@@ -23,8 +23,10 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     } else if (storedUser) {
       try {
         const user = JSON.parse(storedUser);
-        // ⚡ Use the correct type field
-        setRole(user.role ?? null);
+
+        // ✅ Strapi gives role object → extract `type`
+        const userRole = user.role?.type as Role | null;
+        setRole(userRole ?? null);
       } catch (e) {
         console.error("Failed to parse user from local storage", e);
         localStorage.removeItem("token");

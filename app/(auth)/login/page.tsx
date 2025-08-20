@@ -18,7 +18,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
-// Validation schema
+// ✅ Validation schema
 const LoginSchema = z.object({
   email: z.string().min(1, "Email is required").email("Enter a valid email"),
   password: z.string().min(8, "Password must be at least 8 characters"),
@@ -26,7 +26,6 @@ const LoginSchema = z.object({
 
 type LoginValues = z.infer<typeof LoginSchema>;
 
-// Password Input component
 function PasswordInput({ ...field }: any) {
   const [show, setShow] = useState(false);
   return (
@@ -35,7 +34,7 @@ function PasswordInput({ ...field }: any) {
         type={show ? "text" : "password"}
         {...field}
         placeholder="••••••••"
-        className="pl-10 pr-10"
+        className="pl-10 pr-10 h-14"
       />
       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
       <button
@@ -66,7 +65,6 @@ export default function LoginForm() {
     setErrorMessage("");
 
     try {
-      // Step 1: Authenticate and get the JWT
       const res = await fetch("http://localhost:1337/api/auth/local", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -79,21 +77,16 @@ export default function LoginForm() {
       const data = await res.json();
 
       if (!res.ok) {
-        const message =
-          data.error?.message?.[0]?.messages?.[0]?.message ||
-          data.message ||
-          "Login failed";
-        setErrorMessage(message);
+        setErrorMessage(data.error?.message || data.message || "Login failed");
         return;
       }
 
       const jwt = data.jwt;
-      
-      // Step 2: Fetch the full user data with the JWT
-      // Use populate=* to get all nested data like 'role'
-      const userRes = await fetch("http://localhost:1337/api/users/me?populate=role", {
-        headers: { Authorization: `Bearer ${jwt}`, "Content-Type": "application/json" },
-      });
+      const userRes = await fetch(
+        "http://localhost:1337/api/users/me?populate=role",
+        { headers: { Authorization: `Bearer ${jwt}` } }
+      );
+
       const userData = await userRes.json();
 
       if (!userRes.ok) {
@@ -102,11 +95,9 @@ export default function LoginForm() {
         return;
       }
 
-      // Save JWT and the entire user data object
       localStorage.setItem("token", jwt);
       localStorage.setItem("user", JSON.stringify(userData));
 
-      // Redirect after login
       router.push("/");
     } catch (error) {
       console.error(error);
@@ -117,75 +108,90 @@ export default function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
-      <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8">
-        <h2 className="text-2xl font-semibold text-center mb-6">Sign in</h2>
+    <div className="min-h-screen flex">
+      {/* Left side image */}
+      <div className="hidden md:flex w-1/2 bg-gray-100 items-center justify-center">
+        <img
+          src="https://cdn-az.allevents.in/events10/banners/de7c0b393a61ee48db8b4fd87fcc805436b68a2014ba2568d467cc2fb6d3d7d8-rimg-w1200-h527-dce2f8fd-gmir?v=1717079545" // ✅ replace with your image (e.g. /images/login.png)
+          alt="Login Illustration"
+          className="w-full h-full object-fill"
+        />
+      </div>
 
-        {errorMessage && (
-          <div className="text-red-600 mb-4 text-sm text-center">
-            {errorMessage}
-          </div>
-        )}
+      {/* Right side form */}
+      <div className="w-full md:w-1/2 flex items-center justify-center bg-white p-8">
+        <div className="w-full max-w-md">
+          <h2 className="text-3xl font-bold text-center mb-6">Welcome <span className="text-blue-700">Mother</span></h2>
+          <p className="text-gray-500 text-center mb-8">
+            Sign in to access your dashboard
+          </p>
 
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-6"
-          >
-            {/* Email */}
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Input
-                        placeholder="you@example.com"
-                        type="email"
-                        {...field}
-                        className="pl-10 h-14"
-                      />
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          {errorMessage && (
+            <div className="text-red-600 mb-4 text-sm text-center">
+              {errorMessage}
+            </div>
+          )}
 
-            {/* Password */}
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl>
-                    <PasswordInput {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {/* Email */}
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          placeholder="you@example.com"
+                          type="email"
+                          {...field}
+                          className="pl-10 h-14"
+                        />
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            {/* Submit */}
-            <Button type="submit" className="w-full h-14" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in…
-                </>
-              ) : (
-                <>
-                  <LogIn className="mr-2 h-4 w-4" />
-                  Sign In
-                </>
-              )}
-            </Button>
-          </form>
-        </Form>
+              {/* Password */}
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <PasswordInput {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Button
+                type="submit"
+                className="w-full h-14"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Signing in…
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="mr-2 h-4 w-4" />
+                    Sign In
+                  </>
+                )}
+              </Button>
+            </form>
+          </Form>
+        </div>
       </div>
     </div>
   );
