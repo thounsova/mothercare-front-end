@@ -9,9 +9,9 @@ const baseURL = "http://localhost:1337";
 const getImageUrl = (imageData?: any) => {
   if (!imageData) return "";
   const relativeUrl =
-    imageData.formats?.small?.url ||
-    imageData.formats?.thumbnail?.url ||
-    imageData.url ||
+    imageData.formats?.small?.url 
+    imageData.formats?.thumbnail?.url 
+    imageData.url 
     "";
   if (!relativeUrl) return "";
   return relativeUrl.startsWith("http") ? relativeUrl : baseURL + relativeUrl;
@@ -115,9 +115,8 @@ export default function ResidentList() {
         {/* Residents */}
         <div className="space-y-3">
           {filteredResidents.map((resident) => {
-            const avatarUrl: string = resident.avatar || "/default-avatar.png";
-
-            return (
+            const avatarUrl: string = resident.avatar  "/default-avatar.png";
+return (
               <div
                 key={resident.id}
                 className="flex flex-col md:flex-row md:items-center md:justify-between bg-blue-600 text-white p-4 rounded-lg"
@@ -141,14 +140,12 @@ export default function ResidentList() {
                     </p>
                   </div>
                 </div>
-              <button className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[#ddeafff1] text-black text-[15px]">
-                👁️ VIEW
-              </button>
-            </div>
-          ))}
-        </div>
 
-           
+                <button className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[#ddeafff1] text-black text-[15px]">
+                  👁 VIEWS
+                </button>
+              </div>
+            );
           })}
         </div>
       </div>
