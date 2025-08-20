@@ -143,7 +143,7 @@ export default function ResidentList() {
                 </div>
 
                 <button className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[#ddeafff1] text-black text-[15px]">
-                  👁️ VIEW
+                  👁️ VIEWS
                 </button>
               </div>
             );
