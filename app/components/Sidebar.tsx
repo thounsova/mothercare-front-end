@@ -91,7 +91,7 @@ export default function Sidebar({ role, collapsed, setCollapsed }: SidebarProps)
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg transition
                       ${
                         isActive
-                          ? "bg-blue-200 text-blue-900 font-semibold"
+                          ? "bg-blue-100 text-blue-900 font-semibold"
                           : "text-white hover:bg-blue-700 hover:text-white"
                       }`}
                   >
@@ -130,7 +130,7 @@ export default function Sidebar({ role, collapsed, setCollapsed }: SidebarProps)
         {openMobile && (
           <button
             onClick={() => setOpenMobile(false)}
-            className="absolute top-4 right-4 md:hidden p-2 bg-white rounded shadow"
+            className="absolute top-2 right-2 md:hidden p-2 bg-white rounded shadow"
           >
             <X size={24} />
           </button>

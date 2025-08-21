@@ -1,91 +1,37 @@
-// "use client";
+"use client";
 
-// import { useState } from "react";
-// import Image from "next/image";
+import { School, User, Users, Home } from "lucide-react";
 
-// interface Resident {
-//   id: number;
-//   name: string;
-//   age: number;
-//   avatar: string;
-// }
+export default function DashboardPage() {
+  const counts = {
+    schools: 12,
+    teachers: 25,
+    parents: 40,
+    residents: 60,
+  };
 
-// const residents: Resident[] = [
-//   { id: 1, name: "Joshua Ashiru", age: 6, avatar: "/avatar1.jpg" },
-//   { id: 2, name: "Joshua Ashiru", age: 6, avatar: "/avatar2.jpg" },
-//   { id: 3, name: "Joshua Ashiru", age: 6, avatar: "/avatar3.jpg" },
-//   { id: 4, name: "Joshua Ashiru", age: 6, avatar: "/avatar4.jpg" },
-// ];
+  const cards = [
+    { label: "Schools", count: counts.schools, icon: <School className="w-10 h-10 text-blue-700" />, bg: "bg-blue-100" },
+    { label: "Teachers", count: counts.teachers, icon: <User className="w-10 h-10 text-green-700" />, bg: "bg-green-100" },
+    { label: "Parents", count: counts.parents, icon: <Users className="w-10 h-10 text-yellow-700" />, bg: "bg-yellow-100" },
+    { label: "Residents", count: counts.residents, icon: <Home className="w-10 h-10 text-purple-700" />, bg: "bg-purple-100" },
+  ];
 
-// export default function ResidentList() {
-//   const [page, setPage] = useState(1);
-//   const totalPages = 10;
+  return (
+    <div className="max-w-6xl mx-auto p-6">
 
-//   return (
-//     <div className="min-h-screen  bg-gray-70">
-//       <div className="w-full max-w-3xl p-6">
-//         {/* Filter and Search */}
-//         <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
-//           <select className="border px-3 py-2 rounded w-full md:w-auto">
-//             <option>Level / Class</option>
-//           </select>
-
-//           <input
-//             type="text"
-//             placeholder="Search here..."
-//             className="border px-4 py-2 rounded w-full md:w-64"
-//           />
-//         </div>
-
-//         {/* Residents */}
-//         <div className="space-y-3">
-//           {residents.map((resident) => (
-//             <div
-//               key={resident.id}
-//               className="flex flex-col md:flex-row md:items-center md:justify-between bg-blue-600 text-white p-4 rounded-lg "
-//             >
-//               <div className="flex items-cnter gap-4">
-//                 <Image
-//                   src={resident.avatar}
-//                   alt={resident.name}
-//                   width={50}
-//                   height={50}
-//                   className="rounded-full"
-//                 />
-//                 <div>
-//                   <p className="font-semibold text-[23px]">{resident.name}</p>
-//                   <p className="text-sm font-semibold">{resident.age} YEARS</p>
-//                 </div>
-//               </div>
-
-//               <button className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[#ddeafff1] text-black text-[15px]">
-//                 👁️ VIEWS
-//               </button>
-//             </div>
-//           ))}
-//         </div>
-
-//         {/* Pagination */}
-//         <div className="flex justify-center items-center mt-8 gap-4">
-//           <button
-//             disabled={page === 1}
-//             onClick={() => setPage((p) => p - 1)}
-//             className="px-4 py-2 rounded bg-[#477dcf] disabled:opacity-50 text-white font-semibold"
-//           >
-//             Previous
-//           </button>
-//           <span className="text-[#0077FF] font-semibold">
-//             Page <strong>{page}</strong> of {totalPages}
-//           </span>
-//           <button
-//             className="px-4 py-2 rounded bg-blue-500 text-white font-semibold"
-//             disabled={page === totalPages}
-//             onClick={() => setPage((p) => p + 1)}
-//           >
-//             Next
-//           </button>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
+      <div className="flex flex-wrap gap-6 mt-4 justify-center">
+        {cards.map((card) => (
+          <div
+            key={card.label}
+            className={`${card.bg} flex-1 min-w-[180px] max-w-[250px] p-6 rounded-lg shadow flex flex-col items-center gap-2`}
+          >
+            {card.icon}
+            <p className="text-2xl font-bold">{card.count}</p>
+            <p className="text-gray-700 mt-1">{card.label}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

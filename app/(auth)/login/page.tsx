@@ -7,7 +7,6 @@ import { useForm } from "react-hook-form";
 import Logo from "@/app/img/mother.jpg";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Mail, Lock, Eye, EyeOff, LogIn, Loader2 } from "lucide-react";
-
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +18,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
-// ✅ Validation schema
+// Validation schema
 const LoginSchema = z.object({
   email: z.string().min(1, "Email is required").email("Enter a valid email"),
   password: z.string().min(8, "Password must be at least 8 characters"),
@@ -27,6 +26,7 @@ const LoginSchema = z.object({
 
 type LoginValues = z.infer<typeof LoginSchema>;
 
+// Password input with show/hide
 function PasswordInput({ ...field }: any) {
   const [show, setShow] = useState(false);
   return (
@@ -61,11 +61,13 @@ export default function LoginForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  // Handle form submission
   async function onSubmit(values: LoginValues) {
     setIsSubmitting(true);
     setErrorMessage("");
 
     try {
+      // Login request
       const res = await fetch("http://localhost:1337/api/auth/local", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -83,10 +85,11 @@ export default function LoginForm() {
       }
 
       const jwt = data.jwt;
-      const userRes = await fetch(
-        "http://localhost:1337/api/users/me?populate=role",
-        { headers: { Authorization: `Bearer ${jwt}` } }
-      );
+
+      // Fetch user info including role
+      const userRes = await fetch("http://localhost:1337/api/users/me?populate=role", {
+        headers: { Authorization: `Bearer ${jwt}` },
+      });
 
       const userData = await userRes.json();
 
@@ -99,7 +102,18 @@ export default function LoginForm() {
       localStorage.setItem("token", jwt);
       localStorage.setItem("user", JSON.stringify(userData));
 
-      router.push("/");
+      // Redirect based on role
+      const roleName = userData.role?.name || "";
+      if (roleName === "Admin") {
+        router.push("/dashboard");
+      } else if (roleName === "Educator") {
+        router.push("/dashboard/resident");
+         } else if (roleName === "Parent") {
+        router.push("/dashboard/parent");
+      } else {
+        router.push("/dashboard");
+      }
+
     } catch (error) {
       console.error(error);
       setErrorMessage("Something went wrong. Please try again.");
@@ -112,25 +126,19 @@ export default function LoginForm() {
     <div className="min-h-screen flex">
       {/* Left side image */}
       <div className="hidden md:flex w-1/2 bg-gray-100 items-center justify-center">
-       <img
-          src={Logo.src}
-          alt="Login Illustration"
-          className="w-full h-full object-cover"
-        />
+        <img src={Logo.src} alt="Login Illustration" className="w-full h-full object-cover" />
       </div>
 
       {/* Right side form */}
       <div className="w-full md:w-1/2 flex items-center justify-center bg-white p-8">
         <div className="w-full max-w-md">
-          <h2 className="text-2xl  font-bold text-center mb-6">Welcome <span className="text-blue-700">Mother Care</span></h2>
-          <p className="text-gray-500 text-center mb-8">
-            Sign in to access your dashboard
-          </p>
+          <h2 className="text-2xl font-bold text-center mb-6">
+            Welcome <span className="text-blue-700">Mother Care</span>
+          </h2>
+          <p className="text-gray-500 text-center mb-8">Sign in to access your dashboard</p>
 
           {errorMessage && (
-            <div className="text-red-600 mb-4 text-sm text-center">
-              {errorMessage}
-            </div>
+            <div className="text-red-600 mb-4 text-sm text-center">{errorMessage}</div>
           )}
 
           <Form {...form}>
@@ -144,12 +152,7 @@ export default function LoginForm() {
                     <FormLabel>Email</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Input
-                          placeholder="you@example.com"
-                          type="email"
-                          {...field}
-                          className="pl-10 h-14"
-                        />
+                        <Input placeholder="you@example.com" type="email" {...field} className="pl-10 h-14" />
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       </div>
                     </FormControl>
@@ -173,11 +176,8 @@ export default function LoginForm() {
                 )}
               />
 
-              <Button
-                type="submit"
-                className="w-full h-14"
-                disabled={isSubmitting}
-              >
+              {/* Submit Button */}
+              <Button type="submit" className="w-full h-14" disabled={isSubmitting}>
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
