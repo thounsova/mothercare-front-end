@@ -54,7 +54,7 @@ export default function Sidebar({ role, collapsed, setCollapsed }: SidebarProps)
       )}
 
       <aside
-        className={`fixed top-0 left-0 h-screen bg-blue-600 border-r shadow-lg transform transition-all duration-300 z-20
+        className={`fixed top-0 left-0 h-screen bg-blue-500 border-r shadow-lg transform transition-all duration-300 z-20
           ${openMobile ? "translate-x-0" : "-translate-x-full"} 
           md:translate-x-0
           ${collapsed ? "w-20" : "w-64"}`}

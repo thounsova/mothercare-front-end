@@ -2,10 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
-    // You can either use `domains` for simple hostnames:
-    domains: ["encrypted-tbn0.gstatic.com", "localhost"],
-
-    // Or use `remotePatterns` for full control (protocol, port, path):
+    domains: ["encrypted-tbn0.gstatic.com", "res.cloudinary.com"], // add Cloudinary
     remotePatterns: [
       {
         protocol: "http",
