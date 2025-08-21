@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { Eye } from "lucide-react";
 
 const baseURL = "http://localhost:1337";
 
@@ -113,10 +114,10 @@ export default function ResidentList() {
   if (loading) return <p className="p-6 text-center">Loading residents...</p>;
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="w-full max-w-3xl p-6 mx-auto">
+    <div className="min-h-screen py-10 ">
+      <div className="w-full max-w-5xl p-6 mx-auto">
         {/* Filter and Search */}
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-9">
           <input
             type="text"
             placeholder="Search here..."
@@ -136,34 +137,31 @@ export default function ResidentList() {
         </div>
 
         {/* Residents */}
-        <div className="space-y-3">
+        <div className="space-y-2">
           {filteredResidents.map((resident) => (
             <div
               key={resident.id}
-              className="flex flex-col md:flex-row md:items-center md:justify-between bg-blue-600 text-white p-4 rounded-lg"
+              className="flex flex-col md:flex-row md:items-center md:justify-between bg-blue-600 text-white p-4 rounded-lg h-22 "
             >
               <div className="flex items-center gap-4">
                 <Image
                   src={resident.avatar || "/default-avatar.png"}
                   alt={resident.name}
-                  width={50}
-                  height={50}
+                  width={70}
+                  height={70}
                   className="rounded-full object-cover"
                 />
-                <div>
-                  <p className="font-semibold text-[23px]">{resident.name}</p>
-                  <p className="text-sm font-semibold">
-                    {resident.date_of_birth ?? "N/A"}
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between p-2 gap-2">
+                  <p className="font-simbold text-[20px]">{resident.name}</p>
+                  <p className="text-[18px]">
+                    {resident.nick_name ? `(${resident.nick_name})` : ""}
                   </p>
-                  <p className="text-sm font-semibold">
-                    {resident.gender ?? "N/A"}
-                  </p>
-                  <p className="text-sm font-semibold">{resident.classLevel}</p>
                 </div>
               </div>
 
-              <button className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[#ddeafff1] text-black text-[15px]">
-                👁️ VIEW
+              <button className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[#ddeafff1] text-black text-[15px] hover:bg-[#c9dbff] transition">
+                <Eye size={20} />
+                VIEW
               </button>
             </div>
           ))}
