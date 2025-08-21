@@ -2,19 +2,20 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 const baseURL = "http://localhost:1337";
 
-// ✅ Same helper as BlogPost
-const getImageUrl = (imageData?: any) => {
-  if (!imageData) return "";
-  const relativeUrl =
-    imageData.formats?.small?.url ||
-    imageData.formats?.thumbnail?.url ||
-    imageData.url ||
+// Helper to get correct image URL from Strapi media field
+const getAvatarUrl = (avatars?: any[]) => {
+  if (!avatars || avatars.length === 0) return "/default-avatar.png";
+  const avatar = avatars[0]; // pick first image
+  const url =
+    avatar.formats?.thumbnail?.url ||
+    avatar.formats?.small?.url ||
+    avatar.url ||
     "";
-  if (!relativeUrl) return "";
-  return relativeUrl.startsWith("http") ? relativeUrl : baseURL + relativeUrl;
+  return url.startsWith("http") ? url : baseURL + url;
 };
 
 interface Resident {
@@ -28,6 +29,7 @@ interface Resident {
 }
 
 export default function ResidentList() {
+  const router = useRouter();
   const [residents, setResidents] = useState<Resident[]>([]);
   const [filteredResidents, setFilteredResidents] = useState<Resident[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,26 +38,47 @@ export default function ResidentList() {
 
   useEffect(() => {
     async function fetchResidents() {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        console.warn("No token found. Redirecting to login...");
+        setLoading(false);
+        router.push("/login");
+        return;
+      }
+
       try {
         const res = await fetch(
-          "http://localhost:1337/api/profile-residents?populate=avatar"
+          "http://localhost:1337/api/profile-residents?populate=avatar",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
         );
+
+        if (res.status === 401) {
+          console.warn("Token invalid or expired. Redirecting to login...");
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          router.push("/login");
+          return;
+        }
+
         if (!res.ok) throw new Error("Failed to fetch residents");
+
         const data = await res.json();
 
         const formattedResidents: Resident[] = data.data.map(
-          (item: any, index: number) => {
-            const avatarImage = item.avatar?.[0]; // ✅ take first image if exists
-            return {
-              id: item.id,
-              name: item.name,
-              gender: item.gender,
-              nick_name: item.nick_name,
-              date_of_birth: item.date_of_birth,
-              classLevel: index % 2 === 0 ? "Class A" : "Class B", // temporary
-              avatar: getImageUrl(avatarImage),
-            };
-          }
+          (item: any, index: number) => ({
+            id: item.id,
+            name: item.name,
+            gender: item.gender,
+            nick_name: item.nick_name,
+            date_of_birth: item.date_of_birth,
+            classLevel: index % 2 === 0 ? "Class A" : "Class B", // temporary
+            avatar: getAvatarUrl(item.avatar),
+          })
         );
 
         setResidents(formattedResidents);
@@ -68,9 +91,9 @@ export default function ResidentList() {
     }
 
     fetchResidents();
-  }, []);
+  }, [router]);
 
-  // ✅ Filter by class and search
+  // Filter by class and search term
   useEffect(() => {
     let filtered = residents;
 
@@ -114,40 +137,36 @@ export default function ResidentList() {
 
         {/* Residents */}
         <div className="space-y-3">
-          {filteredResidents.map((resident) => {
-            const avatarUrl: string = resident.avatar || "/default-avatar.png";
-
-            return (
-              <div
-                key={resident.id}
-                className="flex flex-col md:flex-row md:items-center md:justify-between bg-blue-600 text-white p-4 rounded-lg"
-              >
-                <div className="flex items-center gap-4">
-                  <Image
-                    src={avatarUrl}
-                    alt={resident.name}
-                    width={50}
-                    height={50}
-                    className="rounded-full object-cover"
-                  />
-                  <div>
-                    <p className="font-semibold text-[23px]">{resident.name}</p>
-                    <p className="text-sm font-semibold">
-                      {resident.date_of_birth ?? "N/A"}
-                    </p>
-                    <p className="text-sm font-semibold">{resident.gender}</p>
-                    <p className="text-sm font-semibold">
-                      {resident.classLevel}
-                    </p>
-                  </div>
+          {filteredResidents.map((resident) => (
+            <div
+              key={resident.id}
+              className="flex flex-col md:flex-row md:items-center md:justify-between bg-blue-600 text-white p-4 rounded-lg"
+            >
+              <div className="flex items-center gap-4">
+                <Image
+                  src={resident.avatar || "/default-avatar.png"}
+                  alt={resident.name}
+                  width={50}
+                  height={50}
+                  className="rounded-full object-cover"
+                />
+                <div>
+                  <p className="font-semibold text-[23px]">{resident.name}</p>
+                  <p className="text-sm font-semibold">
+                    {resident.date_of_birth ?? "N/A"}
+                  </p>
+                  <p className="text-sm font-semibold">
+                    {resident.gender ?? "N/A"}
+                  </p>
+                  <p className="text-sm font-semibold">{resident.classLevel}</p>
                 </div>
-
-                <button className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[#ddeafff1] text-black text-[15px]">
-                  👁️ VIEWS
-                </button>
               </div>
-            );
-          })}
+
+              <button className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[#ddeafff1] text-black text-[15px]">
+                👁️ VIEW
+              </button>
+            </div>
+          ))}
         </div>
       </div>
     </div>
