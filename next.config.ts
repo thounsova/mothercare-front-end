@@ -2,22 +2,13 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
-    // Simple hostnames
-    domains: ["encrypted-tbn0.gstatic.com", "localhost", "res.cloudinary.com"],
-
-    // Remote patterns for more control
+    domains: ["encrypted-tbn0.gstatic.com", "res.cloudinary.com"], // add Cloudinary
     remotePatterns: [
       {
         protocol: "http",
         hostname: "localhost",
         port: "1337",
-        pathname: "/uploads/**", // Strapi local uploads
-      },
-      {
-        protocol: "https",
-        hostname: "res.cloudinary.com",
-        port: "",
-        pathname: "/dxzz4aybz/**", // Your Cloudinary folder
+        pathname: "/uploads/**",
       },
     ],
   },

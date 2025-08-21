@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
+import Logo from "@/app/img/mother.jpg";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Mail, Lock, Eye, EyeOff, LogIn, Loader2 } from "lucide-react";
 
@@ -111,17 +112,17 @@ export default function LoginForm() {
     <div className="min-h-screen flex">
       {/* Left side image */}
       <div className="hidden md:flex w-1/2 bg-gray-100 items-center justify-center">
-        <img
-          src="https://cdn-az.allevents.in/events10/banners/de7c0b393a61ee48db8b4fd87fcc805436b68a2014ba2568d467cc2fb6d3d7d8-rimg-w1200-h527-dce2f8fd-gmir?v=1717079545" // ✅ replace with your image (e.g. /images/login.png)
+       <img
+          src={Logo.src}
           alt="Login Illustration"
-          className="w-full h-full object-scale-down"
+          className="w-full h-full object-cover"
         />
       </div>
 
       {/* Right side form */}
       <div className="w-full md:w-1/2 flex items-center justify-center bg-white p-8">
         <div className="w-full max-w-md">
-          <h2 className="text-3xl font-bold text-center mb-6">Welcome <span className="text-blue-700">Mother</span></h2>
+          <h2 className="text-2xl  font-bold text-center mb-6">Welcome <span className="text-blue-700">Mother Care</span></h2>
           <p className="text-gray-500 text-center mb-8">
             Sign in to access your dashboard
           </p>
