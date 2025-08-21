@@ -82,12 +82,7 @@ export default function Navbar() {
                 {user?.username || "Guest"}
               </p>
               <hr />
-              <button className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100">
-                Profile
-              </button>
-              <button className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100">
-                Settings
-              </button>
+             
               <button className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 text-red-500">
                 Logout
               </button>
