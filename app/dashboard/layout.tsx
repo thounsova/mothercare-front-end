@@ -13,12 +13,7 @@ export default function DashboardLayout({
     <div className="flex min-h-screen">
       {/* Sidebar */}
       <aside>
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="p-2 w-full text-center bg-gray-700 hover:bg-gray-600"
-        >
-          {collapsed ? "➡️" : "⬅️"}
-        </button>
+      
       </aside>
 
       {/* Main content */}
