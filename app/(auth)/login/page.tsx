@@ -114,7 +114,7 @@ export default function LoginForm() {
         <img
           src="https://cdn-az.allevents.in/events10/banners/de7c0b393a61ee48db8b4fd87fcc805436b68a2014ba2568d467cc2fb6d3d7d8-rimg-w1200-h527-dce2f8fd-gmir?v=1717079545" // ✅ replace with your image (e.g. /images/login.png)
           alt="Login Illustration"
-          className="w-full h-full object-fill"
+          className="w-full h-full object-scale-down"
         />
       </div>
 
