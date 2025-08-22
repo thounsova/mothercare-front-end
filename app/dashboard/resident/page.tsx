@@ -7,7 +7,7 @@ import { Eye } from "lucide-react";
 
 const baseURL = "http://localhost:1337";
 
-// Helper to get correct image URL from Strapi media field
+// ✅ Helper to get correct avatar url
 const getAvatarUrl = (avatars?: any[]) => {
   if (!avatars || avatars.length === 0) return "/default-avatar.png";
   const avatar = avatars[0];
@@ -19,43 +19,42 @@ const getAvatarUrl = (avatars?: any[]) => {
   return url.startsWith("http") ? url : baseURL + url;
 };
 
+// ✅ Types
 interface Resident {
   id: number;
-  documentId: string; // added
+  documentId: string;
   name: string;
-  gender?: string;
   nick_name?: string;
+  gender?: string;
   date_of_birth?: string;
-  classId?: number;
-  classLevel?: string;
-  avatar?: string;
-}
-
-interface ClassData {
-  id: number;
-  name: string;
+  number?: string;
+  avatar?: any[];
+  class?: {
+    id: number;
+    name: string;
+  };
 }
 
 export default function ResidentList() {
   const router = useRouter();
   const [residents, setResidents] = useState<Resident[]>([]);
   const [filteredResidents, setFilteredResidents] = useState<Resident[]>([]);
-  const [classes, setClasses] = useState<ClassData[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState<string>("All");
   const [searchTerm, setSearchTerm] = useState<string>("");
 
-  // Helper to fetch data with token and handle 401/403
-  const fetchWithToken = async (url: string) => {
+  // ✅ Fetch residents with token
+  const fetchResidents = async () => {
     const token = localStorage.getItem("token");
     if (!token) {
       router.push("/login");
       throw new Error("No token found");
     }
 
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await fetch(
+      `${baseURL}/api/profile-residents?populate=avatar&populate=class`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
 
     if (res.status === 401 || res.status === 403) {
       localStorage.removeItem("token");
@@ -64,39 +63,27 @@ export default function ResidentList() {
       throw new Error(`Unauthorized or Forbidden: ${res.status}`);
     }
 
-    if (!res.ok) throw new Error("Failed to fetch data");
+    if (!res.ok) throw new Error("Failed to fetch residents");
     return res.json();
   };
 
-  // Fetch classes and their residents
+  // ✅ Fetch data on mount
   useEffect(() => {
-    async function fetchData() {
+    async function loadData() {
       try {
-        const data = await fetchWithToken(
-          "http://localhost:1337/api/classes?populate[profile_residents][populate]=avatar"
-        );
+        const data = await fetchResidents();
 
-        // Map classes
-        const classList: ClassData[] = data.data.map((cls: any) => ({
-          id: cls.id,
-          name: cls.name,
+        const allResidents: Resident[] = data.data.map((r: any) => ({
+          id: r.id,
+          documentId: r.documentId,
+          name: r.name,
+          nick_name: r.nick_name,
+          gender: r.gender,
+          date_of_birth: r.date_of_birth,
+          number: r.number,
+          avatar: r.avatar,
+          class: r.class,
         }));
-        setClasses(classList);
-
-        // Flatten all residents with class info
-        const allResidents: Resident[] = data.data.flatMap((cls: any) =>
-          (cls.profile_residents || []).map((r: any) => ({
-            id: r.id,
-            documentId: r.documentId, // include documentId
-            name: r.name,
-            gender: r.gender,
-            nick_name: r.nick_name,
-            date_of_birth: r.date_of_birth,
-            classId: cls.id,
-            classLevel: cls.name,
-            avatar: getAvatarUrl(r.avatar),
-          }))
-        );
 
         setResidents(allResidents);
         setFilteredResidents(allResidents);
@@ -107,15 +94,15 @@ export default function ResidentList() {
       }
     }
 
-    fetchData();
+    loadData();
   }, [router]);
 
-  // Filter residents by class and search term
+  // ✅ Filter residents
   useEffect(() => {
     let filtered = residents;
 
     if (selectedClass !== "All") {
-      filtered = filtered.filter((r) => r.classLevel === selectedClass);
+      filtered = filtered.filter((r) => r.class?.name === selectedClass);
     }
 
     if (searchTerm) {
@@ -129,11 +116,16 @@ export default function ResidentList() {
 
   if (loading) return <p className="p-6 text-center">Loading residents...</p>;
 
+  // ✅ Collect unique class names for filter dropdown
+  const classOptions = Array.from(
+    new Set(residents.map((r) => r.class?.name).filter(Boolean))
+  );
+
   return (
     <div className="min-h-screen py-10 bg-gray-50">
       <div className="w-full max-w-5xl p-4 md:p-6 mx-auto">
         {/* Filter and Search */}
-        <div className="flex flex-col-12 sm:flex-row justify-between items-center gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mb-6">
           <input
             type="text"
             placeholder="Search here..."
@@ -149,9 +141,9 @@ export default function ResidentList() {
             aria-label="Select Class"
           >
             <option value="All">All Classes</option>
-            {classes.map((cls) => (
-              <option key={cls.id} value={cls.name}>
-                {cls.name}
+            {classOptions.map((cls, idx) => (
+              <option key={idx} value={cls}>
+                {cls}
               </option>
             ))}
           </select>
@@ -166,7 +158,7 @@ export default function ResidentList() {
             >
               <div className="flex items-center gap-4 mb-3 sm:mb-0">
                 <Image
-                  src={resident.avatar || "/default-avatar.png"}
+                  src={getAvatarUrl(resident.avatar)}
                   alt={resident.name}
                   width={70}
                   height={70}
@@ -182,7 +174,7 @@ export default function ResidentList() {
                     </p>
                   )}
                   <p className="text-gray-400 text-sm sm:text-base italic">
-                    {resident.classLevel || "No Class"}
+                    {resident.class?.name || "No Class"}
                   </p>
                 </div>
               </div>
