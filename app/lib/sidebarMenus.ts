@@ -4,7 +4,7 @@ export const sidebarMenus: Record<Role, { name: string; path: string }[]> = {
   admin: [
     { name: "Dashboard", path: "/dashboard" },
     { name: "Resident", path: "/dashboard/resident" },
-    { name: "Fields", path: "/dashboard/fields" },
+    { name: "Fields", path: "/dashboard/field" },
     { name: "Medical", path: "/dashboard/medical" },
     { name: "Assessment", path: "/dashboard/assessment" },
     { name: "Reporting", path: "/dashboard/reporting" },
@@ -13,7 +13,7 @@ export const sidebarMenus: Record<Role, { name: string; path: string }[]> = {
     { name: "Resident", path: "/dashboard/resident" },
     { name: "Medical", path: "/dashboard/medical" },
     { name: "Assessment", path: "/dashboard/assessment" },
-    { name: "Fields", path: "/dashboard/fields" },
+    { name: "Fields", path: "/dashboard/field" },
   ],
   parent: [
     { name: "Kids", path: "/dashboard/kids" },

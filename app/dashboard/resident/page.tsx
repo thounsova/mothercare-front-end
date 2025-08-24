@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Eye } from "lucide-react";
 
 const baseURL = "http://localhost:1337";
 
-// ✅ Helper to get correct avatar url
+// Helper to get avatar URL
 const getAvatarUrl = (avatars?: any[]) => {
   if (!avatars || avatars.length === 0) return "/default-avatar.png";
   const avatar = avatars[0];
@@ -19,13 +19,15 @@ const getAvatarUrl = (avatars?: any[]) => {
   return url.startsWith("http") ? url : baseURL + url;
 };
 
-// ✅ Types
+// Resident type
 interface Resident {
   id: number;
   documentId: string;
+  locale: string;
   name: string;
   nick_name?: string;
   gender?: string;
+  country: string;
   date_of_birth?: string;
   number?: string;
   avatar?: any[];
@@ -37,67 +39,71 @@ interface Resident {
 
 export default function ResidentList() {
   const router = useRouter();
+  const params = useParams();
+  const [locale, setLocale] = useState<"en" | "km">(
+    (params.locale as "en" | "km") || "en"
+  );
   const [residents, setResidents] = useState<Resident[]>([]);
   const [filteredResidents, setFilteredResidents] = useState<Resident[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState<string>("All");
   const [searchTerm, setSearchTerm] = useState<string>("");
 
-  // ✅ Fetch residents with token
-  const fetchResidents = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      router.push("/login");
-      throw new Error("No token found");
+  // Fetch residents from Strapi
+  const fetchResidents = async (locale: "en" | "km") => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+
+      const res = await fetch(
+        `${baseURL}/api/profile-residents?populate=avatar&populate=class&locale=${locale}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (res.status === 401 || res.status === 403) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        router.push("/login");
+        return;
+      }
+
+      const data = await res.json();
+
+      const allResidents: Resident[] = data.data.map((r: any) => ({
+        id: r.id,
+        documentId: r.documentId,
+        locale: r.locale,
+        name: r.name,
+        nick_name: r.nick_name,
+        gender: r.gender,
+        date_of_birth: r.date_of_birth,
+        number: r.number,
+        avatar: r.avatar,
+        class: r.class,
+        country: r.country,
+      }));
+
+      setResidents(allResidents);
+      setFilteredResidents(allResidents);
+    } catch (err) {
+      console.error("Failed to fetch residents:", err);
+    } finally {
+      setLoading(false);
     }
-
-    const res = await fetch(
-      `${baseURL}/api/profile-residents?populate=avatar&populate=class`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-
-    if (res.status === 401 || res.status === 403) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      router.push("/login");
-      throw new Error(`Unauthorized or Forbidden: ${res.status}`);
-    }
-
-    if (!res.ok) throw new Error("Failed to fetch residents");
-    return res.json();
   };
 
-  // ✅ Fetch data on mount
+  // Load data on mount or when locale changes
   useEffect(() => {
-    async function loadData() {
-      try {
-        const data = await fetchResidents();
+    setLoading(true);
+    fetchResidents(locale);
+  }, [locale]);
 
-        const allResidents: Resident[] = data.data.map((r: any) => ({
-          id: r.id,
-          documentId: r.documentId,
-          name: r.name,
-          nick_name: r.nick_name,
-          gender: r.gender,
-          date_of_birth: r.date_of_birth,
-          number: r.number,
-          avatar: r.avatar,
-          class: r.class,
-        }));
-
-        setResidents(allResidents);
-        setFilteredResidents(allResidents);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadData();
-  }, [router]);
-
-  // ✅ Filter residents
+  // Filter residents by class and search term
   useEffect(() => {
     let filtered = residents;
 
@@ -116,45 +122,60 @@ export default function ResidentList() {
 
   if (loading) return <p className="p-6 text-center">Loading residents...</p>;
 
-  // ✅ Collect unique class names for filter dropdown
+  // Unique class names for dropdown
   const classOptions = Array.from(
     new Set(residents.map((r) => r.class?.name).filter(Boolean))
   );
 
+  // Toggle language
+  const toggleLocale = () => {
+    const newLocale = locale === "en" ? "km" : "en";
+    setLocale(newLocale);
+  };
+
   return (
     <div className="min-h-screen py-10 bg-gray-50">
       <div className="w-full max-w-5xl p-4 md:p-6 mx-auto">
-        {/* Filter and Search */}
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mb-6">
+        {/* Top Bar: Search + Class + Language */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <input
             type="text"
-            placeholder="Search here..."
-            className="border px-3 py-2 w-full sm:w-64 rounded-lg shadow-2xl border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
+            placeholder={locale === "en" ? "Search here..." : "ស្វែងរក..."}
+            className="border px-4 py-2 w-full sm:w-64 rounded-lg shadow-sm border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
 
-          <select
-            value={selectedClass}
-            onChange={(e) => setSelectedClass(e.target.value)}
-            className="border px-3 py-2 w-full sm:w-48 rounded-lg border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
-            aria-label="Select Class"
-          >
-            <option value="All">All Classes</option>
-            {classOptions.map((cls, idx) => (
-              <option key={idx} value={cls}>
-                {cls}
+          <div className="flex items-center gap-3">
+            <select
+              value={selectedClass}
+              onChange={(e) => setSelectedClass(e.target.value)}
+              className="border px-4 py-2 w-full sm:w-48 rounded-lg border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
+            >
+              <option value="All">
+                {locale === "en" ? "All Classes" : "គ្រប់ថ្នាក់"}
               </option>
-            ))}
-          </select>
-        </div>
+              {classOptions.map((cls, idx) => (
+                <option key={idx} value={cls}>
+                  {cls}
+                </option>
+              ))}
+            </select>
 
-        {/* Residents */}
+            <button
+  onClick={toggleLocale}
+  className="flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full border border-gray-300 bg-white text-gray-800 shadow-sm hover:shadow-md hover:bg-gray-100 transition-all duration-300 font-medium text-sm sm:text-base"
+>
+  {locale === "en" ? "🇰🇭 Khmer" : "🇬🇧 English"}
+</button>
+          </div>
+        </div>
+        {/* Resident Cards */}
         <div className="space-y-4">
           {filteredResidents.map((resident) => (
             <div
               key={resident.id}
-              className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-blue-600 text-white shadow-md p-4 rounded-lg transition hover:shadow-lg"
+              className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-blue-600 text-white shadow-md p-4 rounded-lg hover:shadow-lg transition"
             >
               <div className="flex items-center gap-4 mb-3 sm:mb-0">
                 <Image
@@ -165,36 +186,38 @@ export default function ResidentList() {
                   className="rounded-full object-cover"
                 />
                 <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4">
-                  <p className="font-semibold text-lg sm:text-xl">
-                    {resident.name}
-                  </p>
+                  <p className="font-semibold text-lg sm:text-xl">{resident.name}</p>
                   {resident.nick_name && (
                     <p className="text-gray-200 text-sm sm:text-base italic">
                       ({resident.nick_name})
                     </p>
                   )}
+                  {resident.country && (
+                    <p className="text-gray-200 text-sm sm:text-base italic">
+                      ({resident.country})
+                    </p>
+                  )}
                   <p className="text-gray-400 text-sm sm:text-base italic">
-                    {resident.class?.name || "No Class"}
+                    {resident.class?.name || (locale === "en" ? "No Class" : "គ្មានថ្នាក់")}
                   </p>
                 </div>
               </div>
 
-              {/* VIEW Button */}
               <button
                 onClick={() =>
-                  router.push(`/dashboard/profile/${resident.documentId}`)
+                  router.push(`/dashboard/${locale}/profile/${resident.documentId}`)
                 }
                 className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-100 text-blue-800 text-sm sm:text-base hover:bg-blue-200 transition"
               >
                 <Eye size={18} />
-                VIEW
+                {locale === "en" ? "VIEW" : "មើល"}
               </button>
             </div>
           ))}
 
           {filteredResidents.length === 0 && (
             <p className="text-center text-gray-500 mt-6">
-              No residents found.
+              {locale === "en" ? "No residents found." : "មិនមានទិន្នន័យសិស្ស។"}
             </p>
           )}
         </div>
