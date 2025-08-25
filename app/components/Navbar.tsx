@@ -12,6 +12,8 @@ export default function Navbar() {
   const [user, setUser] = useState<any>(null);
 
   const toggleLanguage = () => {
+    
+
     setLanguage((prev) => (prev === "EN" ? "KM" : "EN"));
   };
 

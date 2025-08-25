@@ -1,209 +1,185 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+import { FiCheck, FiActivity, FiSmile, FiMeh, FiFrown } from "react-icons/fi";
 import Slider from "./Slider";
-import { FiCheck } from "react-icons/fi";
 
-interface ProgramSkill {
+const baseURL = "http://localhost:1337";
+
+interface Skill {
   id: number;
   name: string;
-  score?: number;
-  comments?: string | null;
 }
 
-interface ProgramStatus {
-  id: number;
+interface Status {
+  id?: number;
   score: number;
   comments?: string;
-  program_skill?: { id: number };
+  skillId: number;
+  documentId?: string;
 }
 
 interface SliderState {
-  [key: string]: { value: number; comments: string; statusId?: number; skillId: number };
+  [key: string]: Status & { saving?: boolean };
 }
 
-export default function EvaluationSliders() {
-  const [skills, setSkills] = useState<ProgramSkill[]>([]);
+export default function ProgramEvaluation() {
+  const { residentId, programId } = useParams();
+  const [skills, setSkills] = useState<Skill[]>([]);
   const [sliderStates, setSliderStates] = useState<SliderState>({});
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const token = localStorage.getItem("token");
 
-  const skillURL = "http://localhost:1337/api/program-skills";
-  const statusURL = "http://localhost:1337/api/program-statuses?populate=program_skill";
-
-  // Fetch skills and statuses from Strapi
-  const fetchSkills = async () => {
+  const fetchSkillsAndStatuses = async () => {
+    if (!token) return;
     setLoading(true);
-    setErrorMsg(null);
     try {
-      if (!token) throw new Error("No token found in localStorage.");
-
-      // Fetch skills
-      const skillRes = await fetch(skillURL, {
+      // fetch skills
+      const skillRes = await fetch(`${baseURL}/api/program-skills`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!skillRes.ok) throw new Error("Failed to fetch program skills");
       const skillJson = await skillRes.json();
-      const skillsData: ProgramSkill[] = skillJson.data;
+      const skillsData: Skill[] = skillJson.data.map((s: any) => ({
+        id: s.id,
+        name: s.attributes.name,
+      }));
 
-      // Fetch existing statuses
-      const statusRes = await fetch(statusURL, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!statusRes.ok) throw new Error("Failed to fetch program statuses");
+      // fetch existing statuses
+      const statusRes = await fetch(
+        `${baseURL}/api/program-statuses?filters[program][id][$eq]=${programId}&filters[resident][documentId][$eq]=${residentId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       const statusJson = await statusRes.json();
-      const statuses: ProgramStatus[] = statusJson.data;
+      const statuses: Status[] = statusJson.data.map((s: any) => ({
+        score: s.attributes.score,
+        comments: s.attributes.comments,
+        skillId: s.attributes.program_skill.data.id,
+        documentId: s.id.toString(),
+      }));
 
-      // Initialize slider states
       const initialStates: SliderState = {};
       skillsData.forEach((skill) => {
-        const status = statuses.find(
-          (s) => s.program_skill?.id === skill.id
-        );
+        const status = statuses.find((s) => s.skillId === skill.id);
         initialStates[skill.name] = {
-          value: status?.score || skill.score || 0,
-          comments: status?.comments || skill.comments || "",
-          statusId: status?.id,
+          score: status?.score || 0,
+          comments: status?.comments || "",
           skillId: skill.id,
+          documentId: status?.documentId,
+          saving: false,
         };
       });
 
       setSkills(skillsData);
       setSliderStates(initialStates);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setErrorMsg(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchSkills();
-  }, [token]);
+  useEffect(() => { fetchSkillsAndStatuses(); }, [residentId, programId]);
 
-  // Update UI immediately
-  const handleValueChange = (name: string, value: number) => {
-    setSliderStates((prev) => ({
-      ...prev,
-      [name]: { ...prev[name], value },
-    }));
-  };
+  const handleChange = (name: string, value: number) =>
+    setSliderStates((prev) => ({ ...prev, [name]: { ...prev[name], score: value } }));
+  const handleCommentsChange = (name: string, comments: string) =>
+    setSliderStates((prev) => ({ ...prev, [name]: { ...prev[name], comments } }));
 
-  const handleCommentsChange = (name: string, comments: string) => {
-    setSliderStates((prev) => ({
-      ...prev,
-      [name]: { ...prev[name], comments },
-    }));
-  };
-
-  // Save or update each skill status
-  const commitScores = async () => {
-    if (!token) {
-      alert("No token found.");
-      return;
-    }
-
-    setSaving(true);
+  const saveStatus = async (name: string) => {
+    if (!token) return;
+    const state = sliderStates[name];
+    setSliderStates((prev) => ({ ...prev, [name]: { ...prev[name], saving: true } }));
 
     try {
-      await Promise.all(
-        Object.entries(sliderStates).map(async ([name, state]) => {
-          const isUpdate = !!state.statusId;
-          const url = isUpdate
-            ? `http://localhost:1337/api/program-statuses/${state.statusId}`
-            : "http://localhost:1337/api/program-statuses";
+      const isUpdate = !!state.documentId;
+      const url = isUpdate
+        ? `${baseURL}/api/program-statuses/${state.documentId}`
+        : `${baseURL}/api/program-statuses`;
 
-          const body = isUpdate
-            ? { data: { score: state.value, comments: state.comments } }
-            : {
-                data: {
-                  score: state.value,
-                  comments: state.comments,
-                  program_skill: state.skillId, // required for relation
-                },
-              };
+      const body = {
+        data: {
+          score: state.score,
+          comments: state.comments,
+          program_skill: state.skillId,
+          program: programId,
+          resident: residentId,
+        },
+      };
 
-          const res = await fetch(url, {
-            method: isUpdate ? "PUT" : "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(body),
-          });
+      const res = await fetch(url, {
+        method: isUpdate ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      });
 
-          if (!res.ok) {
-            const text = await res.text();
-            throw new Error(`Failed to save ${name}: ${res.status} ${text}`);
-          } else {
-            // Update the UI immediately with returned ID for new items
-            const json = await res.json();
-            if (!isUpdate && json.data?.id) {
-              setSliderStates((prev) => ({
-                ...prev,
-                [name]: { ...prev[name], statusId: json.data.id },
-              }));
-            }
-          }
-        })
-      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(JSON.stringify(json));
 
-      alert("Scores and comments saved successfully!");
+      if (!isUpdate && json.data?.id) {
+        setSliderStates((prev) => ({
+          ...prev,
+          [name]: { ...prev[name], documentId: json.data.id.toString() },
+        }));
+      }
+      alert(`${name} saved successfully!`);
     } catch (err: any) {
-      console.error(err);
-      alert(`Failed to save: ${err.message}`);
+      alert(`Failed to save ${name}: ${err.message}`);
     } finally {
-      setSaving(false);
+      setSliderStates((prev) => ({ ...prev, [name]: { ...prev[name], saving: false } }));
     }
   };
 
-  if (loading) return <p>Loading...</p>;
-  if (errorMsg) return <p className="text-red-500">Error: {errorMsg}</p>;
-  if (skills.length === 0) return <p>No skills found in Strapi.</p>;
+  if (loading) return <p className="p-6 text-center">Loading skills...</p>;
 
   return (
-    <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-100">
-      <div className="space-y-6">
-        {skills.map((skill) => (
-          <div key={skill.id} className="border-b pb-4">
-            <div className="font-semibold text-lg text-gray-700 mb-2">{skill.name}</div>
-            <div className="flex items-center gap-4 mb-2">
-              <Slider
-                color="from-green-400 to-green-600"
-                value={sliderStates[skill.name]?.value || 0}
-                onChange={(e) =>
-                  handleValueChange(skill.name, parseInt(e.target.value))
-                }
-              />
-              <span className="w-10 text-right font-bold text-gray-600">
-                {sliderStates[skill.name]?.value || 0}%
-              </span>
-            </div>
-            <textarea
-              className="p-3 w-full h-24 bg-white border rounded-lg text-gray-700 shadow-sm resize-none"
-              value={sliderStates[skill.name]?.comments || ""}
-              onChange={(e) => handleCommentsChange(skill.name, e.target.value)}
-            />
+    <div className="p-6 max-w-3xl mx-auto space-y-6 bg-white shadow-lg rounded-lg">
+      {skills.map((skill) => (
+        <div key={skill.id} className="border-b pb-4">
+          <div className="flex items-center gap-3 mb-2">
+            <FiActivity className="text-green-500 text-xl" />
+            <h3 className="font-semibold">{skill.name}</h3>
           </div>
-        ))}
-      </div>
 
-      <div className="flex justify-end items-center gap-4 mt-8">
-        <button
-          disabled={saving}
-          onClick={commitScores}
-          className={`flex items-center justify-center p-3 rounded-full text-white transition ${
-            saving ? "bg-gray-400 cursor-not-allowed" : "bg-green-500 hover:bg-green-600"
-          }`}
-        >
-          <FiCheck size={20} />
-          {saving && <span className="ml-2">Saving...</span>}
-        </button>
-      </div>
+          <div className="flex gap-3 mb-2">
+            {[0, 50, 100].map((val) => (
+              <button
+                key={val}
+                onClick={() => handleChange(skill.name, val)}
+                className={`px-3 py-1 rounded-lg border ${
+                  sliderStates[skill.name]?.score === val
+                    ? "bg-blue-100 border-blue-400"
+                    : "hover:bg-gray-100"
+                }`}
+              >
+                {val}%
+              </button>
+            ))}
+          </div>
+
+          <Slider
+            color="from-green-400 to-green-600"
+            value={sliderStates[skill.name]?.score || 0}
+            onChange={(e) => handleChange(skill.name, parseInt(e.target.value))}
+          />
+
+          <textarea
+            className="w-full p-2 mt-2 border rounded-lg"
+            placeholder="Add comments..."
+            value={sliderStates[skill.name]?.comments || ""}
+            onChange={(e) => handleCommentsChange(skill.name, e.target.value)}
+          />
+
+          <button
+            className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg"
+            disabled={sliderStates[skill.name]?.saving}
+            onClick={() => saveStatus(skill.name)}
+          >
+            {sliderStates[skill.name]?.saving ? "Saving..." : sliderStates[skill.name]?.documentId ? "Update" : "Save"}
+          </button>
+        </div>
+      ))}
     </div>
   );
 }

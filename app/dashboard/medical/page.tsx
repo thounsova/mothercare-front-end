@@ -115,7 +115,7 @@ export default function ResidentsPage() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-gray-800">
-            {locale === "en" ? "Residents List" : "បញ្ជីសំណាក់នៅ"}
+            {locale === "en" ? "Medical List" : "បញ្ជីសំណាក់ជំងឺ"}
           </h1>
           <button
             onClick={toggleLocale}

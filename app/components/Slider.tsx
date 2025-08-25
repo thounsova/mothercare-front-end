@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface SliderProps {
   value: number;
@@ -9,7 +9,13 @@ interface SliderProps {
 const Slider: React.FC<SliderProps> = ({ value, color, onChange }) => {
   return (
     <div className="relative flex-grow h-2 rounded-full overflow-hidden">
-      <div className={`absolute inset-0 bg-gradient-to-r ${color}`} style={{ width: `${value}%` }}></div>
+      {/* Progress bar */}
+      <div
+        className={`absolute inset-0 bg-gradient-to-r ${color}`}
+        style={{ width: `${value}%` }}
+      ></div>
+
+      {/* Range input */}
       <input
         type="range"
         min="0"
@@ -18,9 +24,10 @@ const Slider: React.FC<SliderProps> = ({ value, color, onChange }) => {
         onChange={onChange}
         className="w-full h-full absolute appearance-none bg-transparent cursor-pointer"
         style={{
-          '--track-color': 'transparent',
-          '--thumb-color': 'transparent',
-        } as React.CSSProperties}
+          touchAction: "none", // 🚫 prevents page from scrolling on drag (mobile fix)
+          WebkitAppearance: "none", // for Safari
+          background: "transparent",
+        }}
       />
     </div>
   );

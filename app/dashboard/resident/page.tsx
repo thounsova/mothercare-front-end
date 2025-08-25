@@ -52,18 +52,22 @@ export default function ResidentList() {
   // Fetch residents from Strapi
   const fetchResidents = async (locale: "en" | "km") => {
     try {
+      console.log("Fetch Residents....")
       const token = localStorage.getItem("token");
       if (!token) {
         router.push("/login");
         return;
       }
 
+      const url = `${baseURL}/api/profile-residents?populate=avatar&populate=class&locale=${locale}`;
+
       const res = await fetch(
-        `${baseURL}/api/profile-residents?populate=avatar&populate=class&locale=${locale}`,
+        url,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
+      console.log()
 
       if (res.status === 401 || res.status === 403) {
         localStorage.removeItem("token");
@@ -73,6 +77,7 @@ export default function ResidentList() {
       }
 
       const data = await res.json();
+      console.log("data:", data)
 
       const allResidents: Resident[] = data.data.map((r: any) => ({
         id: r.id,
