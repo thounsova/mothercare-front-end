@@ -18,7 +18,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
-// Validation schema
+// ✅ Validation schema
 const LoginSchema = z.object({
   email: z.string().min(1, "Email is required").email("Enter a valid email"),
   password: z.string().min(8, "Password must be at least 8 characters"),
@@ -26,7 +26,7 @@ const LoginSchema = z.object({
 
 type LoginValues = z.infer<typeof LoginSchema>;
 
-// Password input with show/hide
+// ✅ Password input with show/hide
 function PasswordInput({ ...field }: any) {
   const [show, setShow] = useState(false);
   return (
@@ -61,14 +61,14 @@ export default function LoginForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  // Handle form submission
+  // ✅ Handle form submission
   async function onSubmit(values: LoginValues) {
     setIsSubmitting(true);
     setErrorMessage("");
 
     try {
-      // Login request
-      const res = await fetch("http://localhost:1337/api/auth/local", {
+      // 🔑 Login request
+      const res = await fetch("https://energized-fireworks-cc618580b1.strapiapp.com/api/auth/local", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -86,10 +86,13 @@ export default function LoginForm() {
 
       const jwt = data.jwt;
 
-      // Fetch user info including role
-      const userRes = await fetch("http://localhost:1337/api/users/me?populate=role", {
-        headers: { Authorization: `Bearer ${jwt}` },
-      });
+      // 👤 Fetch user info with role + branch
+      const userRes = await fetch(
+        "https://energized-fireworks-cc618580b1.strapiapp.com/api/users/me?populate=role&populate=branch",
+        {
+          headers: { Authorization: `Bearer ${jwt}` },
+        }
+      );
 
       const userData = await userRes.json();
 
@@ -99,16 +102,22 @@ export default function LoginForm() {
         return;
       }
 
+      // Save token & user
       localStorage.setItem("token", jwt);
       localStorage.setItem("user", JSON.stringify(userData));
 
-      // Redirect based on role
+      // ✅ Extract role & branch
       const roleName = userData.role?.name || "";
+      const branchName = userData.branch?.name || "";
+
+      console.log("Role:", roleName, "Branch:", branchName);
+
+      // 🔀 Redirect based on role
       if (roleName === "Admin") {
         router.push("/dashboard");
       } else if (roleName === "Educator") {
         router.push("/dashboard/resident");
-         } else if (roleName === "Parent") {
+      } else if (roleName === "Parent") {
         router.push("/dashboard/parent");
       } else {
         router.push("/dashboard");
@@ -135,10 +144,14 @@ export default function LoginForm() {
           <h2 className="text-2xl font-bold text-center mb-6">
             Welcome <span className="text-blue-700">Mother Care</span>
           </h2>
-          <p className="text-gray-500 text-center mb-8">Sign in to access your dashboard</p>
+          <p className="text-gray-500 text-center mb-8">
+            Sign in to access your dashboard
+          </p>
 
           {errorMessage && (
-            <div className="text-red-600 mb-4 text-sm text-center">{errorMessage}</div>
+            <div className="text-red-600 mb-4 text-sm text-center">
+              {errorMessage}
+            </div>
           )}
 
           <Form {...form}>
@@ -152,7 +165,12 @@ export default function LoginForm() {
                     <FormLabel>Email</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Input placeholder="you@example.com" type="email" {...field} className="pl-10 h-14" />
+                        <Input
+                          placeholder="you@example.com"
+                          type="email"
+                          {...field}
+                          className="pl-10 h-14"
+                        />
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       </div>
                     </FormControl>

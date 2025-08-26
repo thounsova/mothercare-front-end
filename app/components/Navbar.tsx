@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 import Image from "next/image";
 
-const baseURL = "http://localhost:1337"; // Strapi API URL
+const baseURL = "https://energized-fireworks-cc618580b1.strapiapp.com"; // Strapi API URL
 
 export default function Navbar() {
   const [language, setLanguage] = useState<"EN" | "KM">("EN");

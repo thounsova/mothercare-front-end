@@ -1,14 +1,11 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   images: {
-    domains: ["encrypted-tbn0.gstatic.com", "res.cloudinary.com"], // add Cloudinary
     remotePatterns: [
       {
-        protocol: "http",
-        hostname: "localhost",
-        port: "1337",
-        pathname: "/uploads/**",
+        protocol: "https",
+        hostname: "energized-fireworks-cc618580b1.media.strapiapp.com",
+        pathname: "/**",
       },
     ],
   },
