@@ -5,21 +5,22 @@ import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 
-const baseURL = "http://localhost:1337";
+const baseURL = "https://energized-fireworks-cc618580b1.strapiapp.com";
 
-// Avatar helper
-const getAvatarUrl = (avatars?: any[]) => {
-  if (!avatars || avatars.length === 0) return "/default-avatar.png";
-  const avatar = avatars[0];
-  const url =
-    avatar.formats?.thumbnail?.url ||
-    avatar.formats?.small?.url ||
-    avatar.url ||
-    "";
-  return url.startsWith("http") ? url : baseURL + url;
+// Helper to get avatar URL from CloudStrapi
+const getAvatarUrl = (avatar?: any) => {
+  if (!avatar) return "/default-avatar.png";
+
+  const av = Array.isArray(avatar) ? avatar[0] : avatar;
+
+  return (
+    av?.formats?.thumbnail?.url ||
+    av?.formats?.small?.url ||
+    av?.url ||
+    "/default-avatar.png"
+  );
 };
 
-// Resident type
 interface Resident {
   id: number;
   documentId: string;
@@ -32,7 +33,7 @@ interface Resident {
   address_parents?: string;
   address_kinds?: string;
   number?: string;
-  avatar?: any[];
+  avatar?: any | any[];
   comments?: string;
   class?: {
     id: number;
@@ -76,10 +77,14 @@ export default function ResidentProfile() {
 
         if (data.data?.length > 0) {
           const r = data.data[0];
+
+          // avatar directly from data or formats
+          const avatar = r.avatar?.data || r.avatar;
+
           setResident({
             id: r.id,
             documentId: r.documentId,
-            name: r.name,
+            name: r.name || r.full_name || "N/A",
             nick_name: r.nick_name,
             gender: r.gender,
             date_of_birth: r.date_of_birth,
@@ -88,9 +93,11 @@ export default function ResidentProfile() {
             address_parents: r.address_parents,
             address_kinds: r.address_kinds,
             number: r.number,
-            avatar: r.avatar,
+            avatar,
             comments: r.comments,
-            class: r.class,
+            class: r.class?.data
+              ? { id: r.class.data.id, name: r.class.data.name }
+              : r.class || null,
           });
         } else {
           setResident(null);
@@ -104,7 +111,7 @@ export default function ResidentProfile() {
     }
 
     fetchResident();
-  }, [documentId, locale]);
+  }, [documentId, locale, router]);
 
   if (loading)
     return (
@@ -122,20 +129,19 @@ export default function ResidentProfile() {
         <h2 className="text-2xl sm:text-3xl font-bold text-gray-800">
           Resident Profile
         </h2>
-  <button
-  onClick={toggleLocale}
-  className="flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full border border-gray-300 bg-white text-gray-800 shadow-sm hover:shadow-md hover:bg-gray-100 transition-all duration-300 font-medium text-sm sm:text-base"
->
-  {locale === "en" ? "🇰🇭 Khmer" : "🇬🇧 English"}
-</button>
-
+        <button
+          onClick={toggleLocale}
+          className="flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full border border-gray-300 bg-white text-gray-800 shadow-sm hover:shadow-md hover:bg-gray-100 transition-all duration-300 font-medium text-sm sm:text-base"
+        >
+          {locale === "en" ? "🇰🇭 Khmer" : "🇬🇧 English"}
+        </button>
       </div>
 
       {/* Profile Section */}
       <div className="flex flex-col sm:flex-row items-center gap-8 mb-8">
         <Image
           src={getAvatarUrl(resident.avatar)}
-          alt={resident.name}
+          alt={resident.name || "Resident Avatar"}
           width={160}
           height={160}
           className="rounded-full object-cover border-4 border-gray-200 shadow-md"

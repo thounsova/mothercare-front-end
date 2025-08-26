@@ -57,19 +57,7 @@ export default function Navbar() {
       {/* Right section */}
       <div className="flex items-center gap-4">
         {/* Language switch */}
-        <button
-          onClick={toggleLanguage}
-          className="flex items-center gap-2 px-3 py-1 rounded-lg border text-sm"
-        >
-          <Image
-            src={flags[language]}
-            alt={language}
-            width={20}
-            height={14}
-            className="rounded-sm"
-          />
-          {language}
-        </button>
+     
 
         {/* Profile dropdown */}
         <div className="relative">

@@ -1,37 +1,14 @@
 "use client";
-import { useEffect, useState } from "react";
+
+import { useState, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
 import Image from "next/image";
-import { Eye, X, FileText } from "lucide-react";
 
-interface Resident {
-  id: number;
-  documentId: string;
-  locale: string;
-  name: string;
-  nick_name?: string;
-  gender?: string;
-  country?: string;
-  date_of_birth?: string;
-  number?: string;
-  avatar?: any[];
-  class?: { id: number; name: string };
-  medical?: {
-    id: number;
-    diagnosis?: string;
-    medication?: string;
-    doctor?: string;
-    date_of_check?: string;
-    document?: string;      // Cloudinary URL
-    prescription?: string;  // Cloudinary URL
-  };
-}
+const baseURL = "https://energized-fireworks-cc618580b1.strapiapp.com";
 
-const baseURL = "http://localhost:1337";
-
-// Avatar helper
-const getAvatarUrl = (avatars?: any[]) => {
-  if (!avatars || avatars.length === 0) return "/default-avatar.png";
-  const avatar = avatars[0];
+// ✅ Helper to get avatar URL
+const getAvatarUrl = (avatar?: any) => {
+  if (!avatar) return "/default-avatar.png";
   const url =
     avatar.formats?.thumbnail?.url ||
     avatar.formats?.small?.url ||
@@ -40,239 +17,270 @@ const getAvatarUrl = (avatars?: any[]) => {
   return url.startsWith("http") ? url : baseURL + url;
 };
 
-// Extract first file URL
-const getFileUrl = (files?: any[]) => {
-  if (!files || files.length === 0) return null;
-  const file = files[0];
-  return file.formats?.thumbnail?.url || file.formats?.small?.url || file.url || "";
+// ✅ Helper to get file URL
+const getFileUrl = (file?: any) => {
+  if (!file) return "";
+  const url = file.url;
+  return url?.startsWith("http") ? url : baseURL + url;
 };
 
-export default function ResidentsPage() {
-  const [residents, setResidents] = useState<Resident[]>([]);
+interface Medical {
+  id: number;
+  diagnosis?: string;
+  medication?: string;
+  doctor?: string;
+  date_of_check?: string;
+  document?: any[];
+  prescription?: any[];
+  resident: {
+    id: number;
+    documentId: string;
+    full_name: string;
+    avatar?: any;
+    class?: { id: number; name: string };
+  };
+}
+
+export default function MedicalPage() {
+  const router = useRouter();
+  const params = useParams();
+  const [locale, setLocale] = useState<"en" | "km">(
+    (params.locale as "en" | "km") || "en"
+  );
+  const [medicalList, setMedicalList] = useState<Medical[]>([]);
   const [loading, setLoading] = useState(true);
-  const [openResident, setOpenResident] = useState<Resident | null>(null);
-  const [locale, setLocale] = useState<"en" | "km">("en");
+  const [selectedMedical, setSelectedMedical] = useState<Medical | null>(null);
 
-  const toggleLocale = () => setLocale((prev) => (prev === "en" ? "km" : "en"));
+  const fetchMedical = async () => {
+    try {
+      setLoading(true);
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      console.error("❌ No token found");
-      setLoading(false);
-      return;
-    }
+      const token = localStorage.getItem("token");
+      const loggedUser = JSON.parse(localStorage.getItem("user") || "{}");
 
-    fetch(
-      `${baseURL}/api/medical-informations?populate=profile_resident.avatar&populate=profile_resident.class&populate=document&populate=prescription&locale=${locale}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
-      .then((res) => res.json())
-      .then((json) => {
-        const mapped: Resident[] = json.data.map((m: any) => {
-          const r = m.profile_resident;
-          return {
+      if (!token || !loggedUser?.id) {
+        router.push("/login");
+        return;
+      }
+
+      const residentRes = await fetch(
+        `${baseURL}/api/profile-residents?populate=avatar&populate=class&populate=medical_informations.document&populate=medical_informations.prescription&populate=parent_users&populate=educator_user`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const residentData = await residentRes.json();
+
+      const myResidents = residentData.data.filter((r: any) => {
+        const isParent =
+          r.parent_users?.some((p: any) => p.id === loggedUser.id) ?? false;
+        const isEducator = r.educator_user?.id === loggedUser.id;
+        return isParent || isEducator;
+      });
+
+      const allMedical: Medical[] = myResidents.flatMap((r: any) =>
+        (r.medical_informations || []).map((m: any) => ({
+          id: m.id,
+          diagnosis: m.diagnosis,
+          medication: m.medication,
+          doctor: m.doctor,
+          date_of_check: m.date_of_check,
+          document: m.document,
+          prescription: m.prescription,
+          resident: {
             id: r.id,
             documentId: r.documentId,
-            locale: r.locale || "en",
-            name: r.name,
-            nick_name: r.nick_name,
-            gender: r.gender,
-            country: r.country,
-            date_of_birth: r.date_of_birth,
-            number: r.number,
+            full_name: r.full_name,
             avatar: r.avatar,
-            class: r.class,
-            medical: {
-              id: m.id,
-              diagnosis: m.diagnosis,
-              medication: m.medication,
-              doctor: m.doctor,
-              date_of_check: m.date_of_check,
-              document: getFileUrl(m.document),
-              prescription: getFileUrl(m.prescription),
-            },
-          };
-        });
-        setResidents(mapped);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [locale]);
+            class: r.class ? { id: r.class.id, name: r.class.name } : undefined,
+          },
+        }))
+      );
+
+      setMedicalList(allMedical);
+    } catch (err) {
+      console.error("Failed to fetch medical:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMedical();
+  }, []);
 
   if (loading)
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <p className="text-xl font-medium text-gray-500">
-          {locale === "en" ? "Loading residents..." : "កំពុងផ្ទុកបញ្ជីសំណាក់..."}
-        </p>
-      </div>
-    );
+    return <p className="p-6 text-center">Loading medical info...</p>;
 
   return (
-    <div className="min-h-screen py-10 px-4 bg-gray-100">
-      <div className="w-full max-w-6xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">
-            {locale === "en" ? "Medical List" : "បញ្ជីសំណាក់ជំងឺ"}
-          </h1>
-          <button
-            onClick={toggleLocale}
-            className="flex items-center gap-2 px-4 py-2 rounded-full border border-gray-300 bg-white text-gray-800 shadow-sm hover:shadow-md hover:bg-gray-100 transition-all duration-300 font-medium text-sm"
-          >
-            {locale === "en" ? "🇰🇭 Khmer" : "🇬🇧 English"}
-          </button>
-        </div>
+    <div className="p-6 relative">
+      <h1 className="text-3xl font-bold mb-8">
+        {locale === "en" ? "Medical Records" : "កំណត់ត្រាវេជ្ជសាស្ត្រ"}
+      </h1>
 
-        {/* Residents List */}
-        {residents.map((resident) => (
+      {medicalList.length === 0 && (
+        <p className="text-gray-500 mb-4">
+          {locale === "en"
+            ? "No medical records available for your residents."
+            : "មិនមានកំណត់ត្រាវេជ្ជសាស្ត្រ។"}
+        </p>
+      )}
+
+      {/* ✅ Medical List Cards */}
+      <div className="space-y-6">
+        {medicalList.map((m) => (
           <div
-            key={resident.id}
-            className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white shadow-lg rounded-2xl p-6 transition-transform transform hover:scale-[1.01] hover:shadow-xl border border-gray-200"
+            key={m.id}
+            className="bg-white rounded-2xl shadow-md border border-gray-200 p-6 flex justify-between items-center"
           >
-            {/* Main Info */}
-            <div className="flex flex-grow items-center gap-6 mb-4 sm:mb-0">
+            <div className="flex items-center gap-4">
               <Image
-                src={getAvatarUrl(resident.avatar)}
-                alt={resident.name}
-                width={80}
-                height={80}
-                className="rounded-full object-cover border-2 border-gray-300 shadow-sm"
+                src={getAvatarUrl(m.resident.avatar)}
+                alt={m.resident.full_name}
+                width={60}
+                height={60}
+                className="rounded-full border-2 border-blue-400"
               />
-              <div className="flex flex-col">
-                <p className="font-bold text-xl text-gray-800">{resident.name}</p>
-                {resident.nick_name && (
-                  <p className="text-gray-500 italic text-sm mt-1">
-                    ({resident.nick_name})
-                  </p>
-                )}
-                <div className="flex items-center gap-2 mt-2 text-sm text-gray-600">
-                  <span className="font-medium text-gray-700">
-                    {locale === "en" ? resident.class?.name || "N/A" : resident.class?.name || "មិនមាន"}
-                  </span>
-                  <span className="text-gray-400">|</span>
-                  <span className="text-gray-500">
-                    {locale === "en" ? resident.country || "No Country" : resident.country || "មិនមានប្រទេស"}
-                  </span>
-                </div>
+              <div>
+                <p className="font-semibold text-lg">{m.resident.full_name}</p>
+                <p className="text-sm text-gray-500">
+                  {m.resident.class?.name || "No Class"}
+                </p>
               </div>
             </div>
 
-            {/* View Button */}
             <button
-              onClick={() => setOpenResident(resident)}
-              className="mt-4 sm:mt-0 w-full sm:w-auto px-6 py-3 bg-blue-600 text-white font-semibold rounded-full shadow-lg hover:bg-blue-700 transition duration-300 flex items-center justify-center gap-2"
+                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-100 text-blue-800 text-sm sm:text-base hover:bg-blue-200 transition"
+              onClick={() => setSelectedMedical(m)}
             >
-              <Eye size={20} /> {locale === "en" ? "View Details" : "មើលព័ត៌មាន"}
+              {locale === "en" ? "View Details" : "មើលព័ត៌មានលំអិត"}
             </button>
           </div>
         ))}
       </div>
 
-      {/* Modal */}
-      {openResident && (
-        <div
-          onClick={() => setOpenResident(null)}
-          className="fixed inset-0 z-50 flex justify-center items-center bg-black/50 p-4 sm:p-6 overflow-y-auto transition-opacity duration-300"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl p-6 sm:p-8 relative transform transition-all duration-300 scale-100 opacity-100"
-          >
+      {/* ✅ Modal Popup */}
+      {selectedMedical && (
+        <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white max-w-2xl w-full rounded-3xl shadow-xl p-8 relative">
+            {/* Close Button */}
             <button
-              onClick={() => setOpenResident(null)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition"
+              className="absolute top-4 right-4 text-gray-500 hover:text-black text-2xl"
+              onClick={() => setSelectedMedical(null)}
             >
-              <X size={28} />
+              ✕
             </button>
 
             {/* Header */}
-            <div className="flex flex-col sm:flex-row items-center gap-6 mb-8 border-b pb-6">
+            <div className="flex items-center gap-4 mb-6 border-b pb-4">
               <Image
-                src={getAvatarUrl(openResident.avatar)}
-                alt={openResident.name}
-                width={120}
-                height={120}
-                className="rounded-full border-4 border-blue-100 shadow-md object-cover"
+                src={getAvatarUrl(selectedMedical.resident.avatar)}
+                alt={selectedMedical.resident.full_name}
+                width={80}
+                height={80}
+                className="rounded-full border-2 border-blue-400"
               />
-              <div className="flex-1 text-center sm:text-left">
-                <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 leading-tight">
-                  {openResident.name}
+              <div>
+                <h2 className="text-3xl font-bold">
+                  {selectedMedical.resident.full_name}
                 </h2>
-                {openResident.nick_name && (
-                  <p className="text-gray-500 italic mt-1 text-base">
-                    ({openResident.nick_name})
-                  </p>
-                )}
-                <p className="text-gray-600 mt-2 text-lg font-medium">
-                  {locale === "en" ? "Class" : "ថ្នាក់"}: {openResident.class?.name || "N/A"}
+                <p className="text-gray-500 text-sm">
+                  {selectedMedical.resident.class?.name || "No Class"}
                 </p>
               </div>
             </div>
 
-            {/* Medical Info */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {[
-                { label: locale === "en" ? "Date of Birth" : "ថ្ងៃខែឆ្នាំកំណើត", value: openResident.date_of_birth },
-                { label: locale === "en" ? "Gender" : "ភេទ", value: openResident.gender },
-                { label: locale === "en" ? "Diagnosis" : "រោគវិនិច្ឆ័យ", value: openResident.medical?.diagnosis },
-                { label: locale === "en" ? "Medication" : "ថ្នាំព្យាបាល", value: openResident.medical?.medication },
-                { label: locale === "en" ? "Doctor" : "គ្រូពេទ្យ", value: openResident.medical?.doctor },
-                { label: locale === "en" ? "Date of Check" : "ថ្ងៃពិនិត្យ", value: openResident.medical?.date_of_check },
-                {
-                  label: locale === "en" ? "Document" : "ឯកសារ",
-                  value: openResident.medical?.document ? (
-                    /\.(jpg|jpeg|png|gif)$/i.test(openResident.medical.document) ? (
-                      <Image
-                        src={openResident.medical.document}
-                        alt="Document"
-                        width={300}
-                        height={200}
-                        className="rounded-lg border border-gray-200 shadow-sm object-cover"
-                      />
-                    ) : (
-                      <a
-                        href={openResident.medical.document}
-                        target="_blank"
-                        className="flex items-center gap-2 text-blue-600 underline"
-                      >
-                        <FileText size={20} /> {locale === "en" ? "View File" : "មើលឯកសារ"}
-                      </a>
-                    )
-                  ) : "N/A",
-                },
-                {
-                  label: locale === "en" ? "Prescription" : "សៀវភៅថ្នាំ",
-                  value: openResident.medical?.prescription ? (
-                    /\.(jpg|jpeg|png|gif)$/i.test(openResident.medical.prescription) ? (
-                      <Image
-                        src={openResident.medical.prescription}
-                        alt="Prescription"
-                        width={300}
-                        height={200}
-                        className="rounded-lg border border-gray-200 shadow-sm object-cover"
-                      />
-                    ) : (
-                      <a
-                        href={openResident.medical.prescription}
-                        target="_blank"
-                        className="flex items-center gap-2 text-blue-600 underline"
-                      >
-                        <FileText size={20} /> {locale === "en" ? "View File" : "មើលឯកសារ"}
-                      </a>
-                    )
-                  ) : "N/A",
-                },
-              ].map((field, idx) => (
-                <div key={idx} className="flex flex-col">
-                  <span className="text-sm font-semibold text-gray-500 mb-2">{field.label}</span>
-                  <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 shadow-inner flex justify-center">
-                    {field.value}
-                  </div>
-                </div>
-              ))}
+            {/* Form-like Fields */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+              <div>
+                <label className="block text-gray-600 font-semibold mb-1">
+                  {locale === "en" ? "Diagnosis" : "រោគវិនិច្ឆ័យ"}
+                </label>
+                <input
+                  type="text"
+                  value={selectedMedical.diagnosis || ""}
+                  readOnly
+                  className="w-full border border-gray-300 rounded-lg p-3 bg-gray-50 text-gray-800 text-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-600 font-semibold mb-1">
+                  {locale === "en" ? "Medication" : "ថ្នាំ"}
+                </label>
+                <input
+                  type="text"
+                  value={selectedMedical.medication || ""}
+                  readOnly
+                  className="w-full border border-gray-300 rounded-lg p-3 bg-gray-50 text-gray-800 text-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-600 font-semibold mb-1">
+                  {locale === "en" ? "Doctor" : "វេជ្ជបណ្ឌិត"}
+                </label>
+                <input
+                  type="text"
+                  value={selectedMedical.doctor || ""}
+                  readOnly
+                  className="w-full border border-gray-300 rounded-lg p-3 bg-gray-50 text-gray-800 text-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-600 font-semibold mb-1">
+                  {locale === "en" ? "Date of Check" : "កាលបរិច្ឆេទពិនិត្យ"}
+                </label>
+                <input
+                  type="text"
+                  value={selectedMedical.date_of_check || ""}
+                  readOnly
+                  className="w-full border border-gray-300 rounded-lg p-3 bg-gray-50 text-gray-800 text-lg"
+                />
+              </div>
             </div>
+
+          {/* Documents */}
+{selectedMedical.document && selectedMedical.document.length > 0 && (
+  <div className="mb-4 border border-gray-300 rounded-lg p-4 bg-gray-50">
+    <h3 className="font-semibold text-gray-700 mb-2">📄 Documents:</h3>
+    <ul className="list-disc pl-5 text-blue-600">
+      {selectedMedical.document.map((doc: any) => (
+        <li key={doc.id}>
+          <a
+            href={getFileUrl(doc)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-blue-800"
+          >
+            {doc.name || "Document"}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+)}
+
+{/* Prescriptions */}
+{selectedMedical.prescription &&
+  selectedMedical.prescription.length > 0 && (
+    <div className="mb-4 border border-gray-300 rounded-lg p-4 bg-gray-50">
+      <h3 className="font-semibold text-gray-700 mb-2">💊 Prescriptions:</h3>
+      <ul className="list-disc pl-5 text-blue-600">
+        {selectedMedical.prescription.map((pres: any) => (
+          <li key={pres.id}>
+            <a
+              href={getFileUrl(pres)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-blue-800"
+            >
+              {pres.name || "Prescription"}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )}
           </div>
         </div>
       )}

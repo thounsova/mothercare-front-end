@@ -7,7 +7,7 @@ import { Eye } from "lucide-react";
 
 const baseURL = "https://energized-fireworks-cc618580b1.strapiapp.com";
 
-// ✅ Fixed: Avatar is a single object, not an array
+// Helper to get avatar URL
 const getAvatarUrl = (avatar?: any) => {
   if (!avatar) return "/default-avatar.png";
 
@@ -30,11 +30,21 @@ interface Resident {
   country: string;
   date_of_birth?: string;
   number?: string;
-  avatar?: any; // ✅ single object
+  avatar?: any;
   class?: {
     id: number;
     name: string;
   };
+  parent_users?: {
+    id: number;
+    username: string;
+    email: string;
+  }[];
+  educator_user?: {
+    id: number;
+    username: string;
+    email: string;
+  } | null;
 }
 
 export default function ResidentList() {
@@ -51,14 +61,16 @@ export default function ResidentList() {
 
   const fetchResidents = async (locale: "en" | "km") => {
     try {
+      setLoading(true);
       const token = localStorage.getItem("token");
-      if (!token) {
+      const loggedUser = JSON.parse(localStorage.getItem("user") || "{}");
+
+      if (!token || !loggedUser?.id) {
         router.push("/login");
         return;
       }
 
-      // ✅ also populate parent_users & educator_user for filtering
-      const url = `${baseURL}/api/profile-residents?populate=avatar&populate=class&populate=parent_users&populate=educator_user&locale=${locale}`;
+      const url = `${baseURL}/api/profile-residents?populate=avatar&populate=class&populate=parent_users&populate=educator_user`;
 
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
@@ -73,29 +85,44 @@ export default function ResidentList() {
 
       const data = await res.json();
 
-      // ✅ filter out residents with parent_users or educator_user
-      const filtered = data.data.filter(
-        (r: any) => !r.parent_users && !r.educator_user
-      );
+      const allResidents: Resident[] = data.data
+        .filter((r: any) => {
+          const isParent =
+            r.parent_users?.some((p: any) => p.id === loggedUser.id) ?? false;
+          const isEducator = r.educator_user?.id === loggedUser.id;
+          return isParent || isEducator;
+        })
+        .map((r: any) => {
+          let residentClass;
+          if (r.class?.data) {
+            const cls = r.class.data;
+            residentClass = {
+              id: cls.id,
+              name: cls.attributes?.name || cls.name || "No Class",
+            };
+          } else if (r.class) {
+            residentClass = {
+              id: r.class.id,
+              name: r.class.name || "No Class",
+            };
+          }
 
-      const allResidents: Resident[] = filtered.map((r: any) => ({
-        id: r.id,
-        documentId: r.documentId,
-        locale: r.locale,
-        full_name: r.full_name,
-        nick_name: r.nick_name,
-        gender: r.gender,
-        date_of_birth: r.date_of_birth,
-        number: r.number,
-        avatar: r.avatar || null,
-        class: r.class?.data
-          ? {
-              id: r.class.data.id,
-              name: r.class.data.name,
-            }
-          : undefined,
-        country: r.country,
-      }));
+          return {
+            id: r.id,
+            documentId: r.documentId,
+            locale: r.locale,
+            full_name: r.full_name,
+            nick_name: r.nick_name,
+            gender: r.gender,
+            date_of_birth: r.date_of_birth,
+            number: r.number,
+            avatar: r.avatar || null,
+            class: residentClass,
+            country: r.country,
+            parent_users: r.parent_users || [],
+            educator_user: r.educator_user || null,
+          };
+        });
 
       setResidents(allResidents);
       setFilteredResidents(allResidents);
@@ -107,7 +134,6 @@ export default function ResidentList() {
   };
 
   useEffect(() => {
-    setLoading(true);
     fetchResidents(locale);
   }, [locale]);
 
@@ -129,13 +155,17 @@ export default function ResidentList() {
 
   if (loading) return <p className="p-6 text-center">Loading residents...</p>;
 
+  // Safely build class options
   const classOptions = Array.from(
-    new Set(residents.map((r) => r.class?.name).filter(Boolean))
+    new Set(
+      residents
+        .map((r) => r.class?.name)
+        .filter((name): name is string => !!name)
+    )
   );
 
   const toggleLocale = () => {
-    const newLocale = locale === "en" ? "km" : "en";
-    setLocale(newLocale);
+    setLocale(locale === "en" ? "km" : "en");
   };
 
   return (
@@ -212,17 +242,19 @@ export default function ResidentList() {
                 </div>
               </div>
 
-              <button
-                onClick={() =>
-                  router.push(
-                    `/dashboard/${locale}/profile/${resident.documentId}`
-                  )
-                }
-                className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-100 text-blue-800 text-sm sm:text-base hover:bg-blue-200 transition"
-              >
-                <Eye size={18} />
-                {locale === "en" ? "VIEW" : "មើល"}
-              </button>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <button
+                  onClick={() =>
+                    router.push(
+                      `/dashboard/${locale}/profile/${resident.documentId}`
+                    )
+                  }
+                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-100 text-blue-800 text-sm sm:text-base hover:bg-blue-200 transition"
+                >
+                  <Eye size={18} />
+                  {locale === "en" ? "VIEW" : "មើល"}
+                </button>
+              </div>
             </div>
           ))}
 

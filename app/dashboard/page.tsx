@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { School, User, Users, Home } from "lucide-react";
 
-const baseURL = "http://localhost:1337";
+const baseURL = "https://energized-fireworks-cc618580b1.strapiapp.com";
 
 export default function DashboardPage() {
   const [counts, setCounts] = useState({
