@@ -3,12 +3,13 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
-import { useForm } from "react-hook-form";
+import { useForm, ControllerRenderProps } from "react-hook-form";
 import Logo from "@/app/img/mother.jpg";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Mail, Lock, Eye, EyeOff, LogIn, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
 import {
   Form,
   FormField,
@@ -26,8 +27,10 @@ const LoginSchema = z.object({
 
 type LoginValues = z.infer<typeof LoginSchema>;
 
-// ✅ Password input with show/hide
-function PasswordInput({ ...field }: any) {
+// ✅ Type-safe Password input
+type PasswordInputProps = ControllerRenderProps<LoginValues, "password">;
+
+function PasswordInput(field: PasswordInputProps) {
   const [show, setShow] = useState(false);
   return (
     <div className="relative">
@@ -68,14 +71,17 @@ export default function LoginForm() {
 
     try {
       // 🔑 Login request
-      const res = await fetch("https://energized-fireworks-cc618580b1.strapiapp.com/api/auth/local", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          identifier: values.email,
-          password: values.password,
-        }),
-      });
+      const res = await fetch(
+        "https://energized-fireworks-cc618580b1.strapiapp.com/api/auth/local",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            identifier: values.email,
+            password: values.password,
+          }),
+        }
+      );
 
       const data = await res.json();
 
@@ -107,8 +113,8 @@ export default function LoginForm() {
       localStorage.setItem("user", JSON.stringify(userData));
 
       // ✅ Extract role & branch
-      const roleName = userData.role?.name || "";
-      const branchName = userData.branch?.name || "";
+      const roleName: string = userData.role?.name || "";
+      const branchName: string = userData.branch?.name || "";
 
       console.log("Role:", roleName, "Branch:", branchName);
 
@@ -122,7 +128,6 @@ export default function LoginForm() {
       } else {
         router.push("/dashboard");
       }
-
     } catch (error) {
       console.error(error);
       setErrorMessage("Something went wrong. Please try again.");
@@ -134,8 +139,14 @@ export default function LoginForm() {
   return (
     <div className="min-h-screen flex">
       {/* Left side image */}
-      <div className="hidden md:flex w-1/2 bg-gray-100 items-center justify-center">
-        <img src={Logo.src} alt="Login Illustration" className="w-full h-full object-cover" />
+      <div className="hidden md:flex w-1/2 bg-gray-100 items-center justify-center relative">
+        <Image
+          src={Logo}
+          alt="Login Illustration"
+          className="object-cover"
+          fill
+          priority
+        />
       </div>
 
       {/* Right side form */}

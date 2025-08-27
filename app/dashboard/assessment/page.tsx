@@ -110,12 +110,12 @@ export default function ReportsPage() {
       <div className="w-full max-w-5xl mx-auto p-4 md:p-6">
         {/* Top Bar */}
         <div className="flex justify-end mb-6">
-          <button
+          {/* <button
             onClick={() => setLocale(locale === "en" ? "km" : "en")}
             className="px-4 py-2 rounded-full border bg-white text-gray-800 shadow hover:bg-gray-100 transition"
           >
             {locale === "en" ? "🇰🇭 Khmer" : "🇬🇧 English"}
-          </button>
+          </button> */}
         </div>
 
         {/* Assessments List */}

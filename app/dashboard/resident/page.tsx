@@ -7,7 +7,7 @@ import { Eye } from "lucide-react";
 
 const baseURL = "https://energized-fireworks-cc618580b1.strapiapp.com";
 
-// Helper to get avatar URL
+// ✅ Helper to get avatar URL
 const getAvatarUrl = (avatar?: any) => {
   if (!avatar) return "/default-avatar.png";
 
@@ -47,6 +47,13 @@ interface Resident {
   } | null;
 }
 
+interface Pagination {
+  page: number;
+  pageSize: number;
+  pageCount: number;
+  total: number;
+}
+
 export default function ResidentList() {
   const router = useRouter();
   const params = useParams();
@@ -59,7 +66,16 @@ export default function ResidentList() {
   const [selectedClass, setSelectedClass] = useState<string>("All");
   const [searchTerm, setSearchTerm] = useState<string>("");
 
-  const fetchResidents = async (locale: "en" | "km") => {
+  // ✅ Pagination state → 4 items per page
+  const [pagination, setPagination] = useState<Pagination>({
+    page: 1,
+    pageSize: 4, // 👈 show 4 residents per page
+    pageCount: 1,
+    total: 0,
+  });
+
+  // ✅ Fetch Residents with pagination
+  const fetchResidents = async (locale: "en" | "km", page = 1) => {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
@@ -70,7 +86,22 @@ export default function ResidentList() {
         return;
       }
 
-      const url = `${baseURL}/api/profile-residents?populate=avatar&populate=class&populate=parent_users&populate=educator_user`;
+      const role = loggedUser.role?.type;
+      const branchDocumentId = loggedUser.branch?.documentId;
+      const userDocumentId = loggedUser.documentId;
+
+      let url = `${baseURL}/api/profile-residents?populate=avatar&populate=class&pagination[page]=${page}&pagination[pageSize]=${pagination.pageSize}`;
+
+      // 🔑 Apply filters by role
+      if (role === "educator") {
+        url += `&populate=educator_user&filters[educator_user][documentId][$eq]=${userDocumentId}`;
+      } else if (role === "parent") {
+        url += `&populate=parent_users&filters[parent_users][documentId][$eq]=${userDocumentId}`;
+      } else {
+        if (branchDocumentId) {
+          url += `&filters[branch][documentId][$eq]=${branchDocumentId}`;
+        }
+      }
 
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
@@ -84,48 +115,46 @@ export default function ResidentList() {
       }
 
       const data = await res.json();
+      console.log("Residents response:", data);
 
-      const allResidents: Resident[] = data.data
-        .filter((r: any) => {
-          const isParent =
-            r.parent_users?.some((p: any) => p.id === loggedUser.id) ?? false;
-          const isEducator = r.educator_user?.id === loggedUser.id;
-          return isParent || isEducator;
-        })
-        .map((r: any) => {
-          let residentClass;
-          if (r.class?.data) {
-            const cls = r.class.data;
-            residentClass = {
-              id: cls.id,
-              name: cls.attributes?.name || cls.name || "No Class",
-            };
-          } else if (r.class) {
-            residentClass = {
-              id: r.class.id,
-              name: r.class.name || "No Class",
-            };
-          }
-
-          return {
-            id: r.id,
-            documentId: r.documentId,
-            locale: r.locale,
-            full_name: r.full_name,
-            nick_name: r.nick_name,
-            gender: r.gender,
-            date_of_birth: r.date_of_birth,
-            number: r.number,
-            avatar: r.avatar || null,
-            class: residentClass,
-            country: r.country,
-            parent_users: r.parent_users || [],
-            educator_user: r.educator_user || null,
+      const allResidents: Resident[] = data.data.map((r: any) => {
+        let residentClass;
+        if (r.class?.data) {
+          const cls = r.class.data;
+          residentClass = {
+            id: cls.id,
+            name: cls.attributes?.name || cls.name || "No Class",
           };
-        });
+        } else if (r.class) {
+          residentClass = {
+            id: r.class.id,
+            name: r.class.name || "No Class",
+          };
+        }
+
+        return {
+          id: r.id,
+          documentId: r.documentId,
+          locale: r.locale,
+          full_name: r.full_name,
+          nick_name: r.nick_name,
+          gender: r.gender,
+          date_of_birth: r.date_of_birth,
+          number: r.number,
+          avatar: r.avatar || null,
+          class: residentClass,
+          country: r.country,
+          parent_users: r.parent_users || [],
+          educator_user: r.educator_user || null,
+        };
+      });
 
       setResidents(allResidents);
       setFilteredResidents(allResidents);
+
+      if (data.meta?.pagination) {
+        setPagination(data.meta.pagination);
+      }
     } catch (err) {
       console.error("Failed to fetch residents:", err);
     } finally {
@@ -134,9 +163,10 @@ export default function ResidentList() {
   };
 
   useEffect(() => {
-    fetchResidents(locale);
-  }, [locale]);
+    fetchResidents(locale, pagination.page);
+  }, [locale, pagination.page]);
 
+  // ✅ Filtering by search + class
   useEffect(() => {
     let filtered = residents;
 
@@ -155,7 +185,6 @@ export default function ResidentList() {
 
   if (loading) return <p className="p-6 text-center">Loading residents...</p>;
 
-  // Safely build class options
   const classOptions = Array.from(
     new Set(
       residents
@@ -164,14 +193,10 @@ export default function ResidentList() {
     )
   );
 
-  const toggleLocale = () => {
-    setLocale(locale === "en" ? "km" : "en");
-  };
-
   return (
     <div className="min-h-screen py-10 bg-gray-50">
       <div className="w-full max-w-5xl p-4 md:p-6 mx-auto">
-        {/* Top bar */}
+        {/* 🔍 Top bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <input
             type="text"
@@ -185,7 +210,7 @@ export default function ResidentList() {
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
-              className="border px-4 py-2 w-full sm:w-48 rounded-lg border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
+              className="border px-4 py-2  w-full sm:w-48 rounded-lg border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
             >
               <option value="All">
                 {locale === "en" ? "All Classes" : "គ្រប់ថ្នាក់"}
@@ -196,22 +221,15 @@ export default function ResidentList() {
                 </option>
               ))}
             </select>
-
-            <button
-              onClick={toggleLocale}
-              className="flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full border border-gray-300 bg-white text-gray-800 shadow-sm hover:shadow-md hover:bg-gray-100 transition-all duration-300 font-medium text-sm sm:text-base"
-            >
-              {locale === "en" ? "🇰🇭 Khmer" : "🇬🇧 English"}
-            </button>
           </div>
         </div>
 
-        {/* Resident Cards */}
+        {/* 🧑 Resident Cards */}
         <div className="space-y-4">
           {filteredResidents.map((resident) => (
             <div
               key={resident.id}
-              className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-blue-600 text-white shadow-md p-4 rounded-lg hover:shadow-lg transition"
+              className="flex flex-col sm:flex-row sm:items-center border-b-blue-400 border-2 sm:justify-between bg-white text-white shadow-md p-4 rounded-lg hover:shadow-lg transition"
             >
               <div className="flex items-center gap-4 mb-3 sm:mb-0">
                 <Image
@@ -219,19 +237,19 @@ export default function ResidentList() {
                   alt={resident.full_name}
                   width={70}
                   height={70}
-                  className="rounded-full object-cover"
+                className="rounded-full border-2 border-blue-400"
                 />
                 <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4">
-                  <p className="font-semibold text-lg sm:text-xl">
+                  <p className="font-semibold text-lg text-gray-950 sm:text-xl">
                     {resident.full_name}
                   </p>
                   {resident.nick_name && (
-                    <p className="text-gray-200 text-sm sm:text-base italic">
+                    <p className="text-gray-700 text-sm sm:text-base italic">
                       ({resident.nick_name})
                     </p>
                   )}
                   {resident.country && (
-                    <p className="text-gray-200 text-sm sm:text-base italic">
+                    <p className="text-gray-400  text-sm sm:text-base italic">
                       ({resident.country})
                     </p>
                   )}
@@ -265,6 +283,41 @@ export default function ResidentList() {
                 : "មិនមានទិន្នន័យសិស្ស។"}
             </p>
           )}
+        </div>
+
+        {/* 🔄 Pagination (always shown) */}
+        <div className="flex justify-center items-center gap-2 mt-6">
+          <button
+            disabled={pagination.page === 1}
+            onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))}
+            className="px-3 py-1 rounded-lg border bg-white hover:bg-gray-100 disabled:opacity-50"
+          >
+            {locale === "en" ? "Previous" : "ថយក្រោយ"}
+          </button>
+
+          {Array.from({ length: pagination.pageCount }, (_, i) => i + 1).map(
+            (pg) => (
+              <button
+                key={pg}
+                onClick={() => setPagination((p) => ({ ...p, page: pg }))}
+                className={`px-3 py-1 rounded-lg border ${
+                  pg === pagination.page
+                    ? "bg-blue-600 text-white"
+                    : "bg-white hover:bg-gray-100"
+                }`}
+              >
+                {pg}
+              </button>
+            )
+          )}
+
+          <button
+            disabled={pagination.page === pagination.pageCount}
+            onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}
+            className="px-3 py-1 rounded-lg border bg-white hover:bg-gray-100 disabled:opacity-50"
+          >
+            {locale === "en" ? "Next" : "បន្ទាប់"}
+          </button>
         </div>
       </div>
     </div>

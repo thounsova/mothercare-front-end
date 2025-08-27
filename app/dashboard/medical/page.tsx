@@ -125,13 +125,13 @@ export default function MedicalPage() {
       )}
 
       {/* ✅ Medical List Cards */}
-      <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {medicalList.map((m) => (
           <div
             key={m.id}
-            className="bg-white rounded-2xl shadow-md border border-gray-200 p-6 flex justify-between items-center"
+            className="bg-white rounded-2xl shadow-md border border-gray-200 p-4 sm:p-6 flex flex-col justify-between"
           >
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 mb-4">
               <Image
                 src={getAvatarUrl(m.resident.avatar)}
                 alt={m.resident.full_name}
@@ -139,16 +139,15 @@ export default function MedicalPage() {
                 height={60}
                 className="rounded-full border-2 border-blue-400"
               />
-              <div>
+              <div className="flex-1">
                 <p className="font-semibold text-lg">{m.resident.full_name}</p>
                 <p className="text-sm text-gray-500">
                   {m.resident.class?.name || "No Class"}
                 </p>
               </div>
             </div>
-
             <button
-                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-100 text-blue-800 text-sm sm:text-base hover:bg-blue-200 transition"
+              className="mt-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-100 text-blue-800 text-sm sm:text-base hover:bg-blue-200 transition"
               onClick={() => setSelectedMedical(m)}
             >
               {locale === "en" ? "View Details" : "មើលព័ត៌មានលំអិត"}
@@ -159,8 +158,8 @@ export default function MedicalPage() {
 
       {/* ✅ Modal Popup */}
       {selectedMedical && (
-        <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white max-w-2xl w-full rounded-3xl shadow-xl p-8 relative">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white max-w-2xl w-full rounded-3xl shadow-xl p-6 relative flex flex-col max-h-[90vh]">
             {/* Close Button */}
             <button
               className="absolute top-4 right-4 text-gray-500 hover:text-black text-2xl"
@@ -170,7 +169,7 @@ export default function MedicalPage() {
             </button>
 
             {/* Header */}
-            <div className="flex items-center gap-4 mb-6 border-b pb-4">
+            <div className="flex flex-col sm:flex-row items-center gap-4 mb-4 sm:mb-6 border-b pb-4">
               <Image
                 src={getAvatarUrl(selectedMedical.resident.avatar)}
                 alt={selectedMedical.resident.full_name}
@@ -178,8 +177,8 @@ export default function MedicalPage() {
                 height={80}
                 className="rounded-full border-2 border-blue-400"
               />
-              <div>
-                <h2 className="text-3xl font-bold">
+              <div className="text-center sm:text-left">
+                <h2 className="text-2xl sm:text-3xl font-bold">
                   {selectedMedical.resident.full_name}
                 </h2>
                 <p className="text-gray-500 text-sm">
@@ -188,99 +187,70 @@ export default function MedicalPage() {
               </div>
             </div>
 
-            {/* Form-like Fields */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
-              <div>
-                <label className="block text-gray-600 font-semibold mb-1">
-                  {locale === "en" ? "Diagnosis" : "រោគវិនិច្ឆ័យ"}
-                </label>
-                <input
-                  type="text"
-                  value={selectedMedical.diagnosis || ""}
-                  readOnly
-                  className="w-full border border-gray-300 rounded-lg p-3 bg-gray-50 text-gray-800 text-lg"
-                />
+            {/* Scrollable Content */}
+            <div className="overflow-y-auto flex-1 space-y-6 pr-2">
+              {/* Form-like Fields */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {[
+                  { label: locale === "en" ? "Diagnosis" : "រោគវិនិច្ឆ័យ", value: selectedMedical.diagnosis },
+                  { label: locale === "en" ? "Medication" : "ថ្នាំ", value: selectedMedical.medication },
+                  { label: locale === "en" ? "Doctor" : "វេជ្ជបណ្ឌិត", value: selectedMedical.doctor },
+                  { label: locale === "en" ? "Date of Check" : "កាលបរិច្ឆេទពិនិត្យ", value: selectedMedical.date_of_check },
+                ].map((field, idx) => (
+                  <div key={idx}>
+                    <label className="block text-gray-600 font-semibold mb-1">{field.label}</label>
+                    <input
+                      type="text"
+                      value={field.value || ""}
+                      readOnly
+                      className="w-full border border-gray-300 rounded-lg p-3 bg-gray-50 text-gray-800 text-lg"
+                    />
+                  </div>
+                ))}
               </div>
 
-              <div>
-                <label className="block text-gray-600 font-semibold mb-1">
-                  {locale === "en" ? "Medication" : "ថ្នាំ"}
-                </label>
-                <input
-                  type="text"
-                  value={selectedMedical.medication || ""}
-                  readOnly
-                  className="w-full border border-gray-300 rounded-lg p-3 bg-gray-50 text-gray-800 text-lg"
-                />
-              </div>
+              {/* Documents */}
+              {selectedMedical.document && selectedMedical.document.length > 0 && (
+                <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
+                  <h3 className="font-semibold text-gray-700 mb-2">📄 Documents:</h3>
+                  <ul className="list-disc pl-5 text-blue-600 space-y-1">
+                    {selectedMedical.document.map((doc: any) => (
+                      <li key={doc.id}>
+                        <a
+                          href={getFileUrl(doc)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline hover:text-blue-800"
+                        >
+                          {doc.name || "Document"}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
-              <div>
-                <label className="block text-gray-600 font-semibold mb-1">
-                  {locale === "en" ? "Doctor" : "វេជ្ជបណ្ឌិត"}
-                </label>
-                <input
-                  type="text"
-                  value={selectedMedical.doctor || ""}
-                  readOnly
-                  className="w-full border border-gray-300 rounded-lg p-3 bg-gray-50 text-gray-800 text-lg"
-                />
-              </div>
-
-              <div>
-                <label className="block text-gray-600 font-semibold mb-1">
-                  {locale === "en" ? "Date of Check" : "កាលបរិច្ឆេទពិនិត្យ"}
-                </label>
-                <input
-                  type="text"
-                  value={selectedMedical.date_of_check || ""}
-                  readOnly
-                  className="w-full border border-gray-300 rounded-lg p-3 bg-gray-50 text-gray-800 text-lg"
-                />
-              </div>
+              {/* Prescriptions */}
+              {selectedMedical.prescription && selectedMedical.prescription.length > 0 && (
+                <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
+                  <h3 className="font-semibold text-gray-700 mb-2">💊 Prescriptions:</h3>
+                  <ul className="list-disc pl-5 text-blue-600 space-y-1">
+                    {selectedMedical.prescription.map((pres: any) => (
+                      <li key={pres.id}>
+                        <a
+                          href={getFileUrl(pres)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline hover:text-blue-800"
+                        >
+                          {pres.name || "Prescription"}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
-
-          {/* Documents */}
-{selectedMedical.document && selectedMedical.document.length > 0 && (
-  <div className="mb-4 border border-gray-300 rounded-lg p-4 bg-gray-50">
-    <h3 className="font-semibold text-gray-700 mb-2">📄 Documents:</h3>
-    <ul className="list-disc pl-5 text-blue-600">
-      {selectedMedical.document.map((doc: any) => (
-        <li key={doc.id}>
-          <a
-            href={getFileUrl(doc)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:text-blue-800"
-          >
-            {doc.name || "Document"}
-          </a>
-        </li>
-      ))}
-    </ul>
-  </div>
-)}
-
-{/* Prescriptions */}
-{selectedMedical.prescription &&
-  selectedMedical.prescription.length > 0 && (
-    <div className="mb-4 border border-gray-300 rounded-lg p-4 bg-gray-50">
-      <h3 className="font-semibold text-gray-700 mb-2">💊 Prescriptions:</h3>
-      <ul className="list-disc pl-5 text-blue-600">
-        {selectedMedical.prescription.map((pres: any) => (
-          <li key={pres.id}>
-            <a
-              href={getFileUrl(pres)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline hover:text-blue-800"
-            >
-              {pres.name || "Prescription"}
-            </a>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )}
           </div>
         </div>
       )}
