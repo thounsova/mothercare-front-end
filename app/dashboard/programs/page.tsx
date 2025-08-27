@@ -8,18 +8,35 @@ import { FullPageModal } from "@/app/components/FullPageModal";
 
 const baseURL = "https://energized-fireworks-cc618580b1.strapiapp.com";
 
-// Helper to get avatar URL
-const getAvatarUrl = (avatar?: any) => {
-  if (!avatar) return "/default-avatar.png";
+// -------------------- Types --------------------
+interface AvatarFormat {
+  url: string;
+}
 
-  const url =
-    avatar.formats?.thumbnail?.url ||
-    avatar.formats?.small?.url ||
-    avatar.url ||
-    "";
+interface Avatar {
+  url?: string;
+  formats?: {
+    thumbnail?: AvatarFormat;
+    small?: AvatarFormat;
+  };
+}
 
-  return url.startsWith("http") ? url : baseURL + url;
-};
+interface Class {
+  id: number;
+  name: string;
+}
+
+interface ParentUser {
+  id: number;
+  username: string;
+  email: string;
+}
+
+interface EducatorUser {
+  id: number;
+  username: string;
+  email: string;
+}
 
 interface Resident {
   id: number;
@@ -31,21 +48,10 @@ interface Resident {
   country: string;
   date_of_birth?: string;
   number?: string;
-  avatar?: any;
-  class?: {
-    id: number;
-    name: string;
-  };
-  parent_users?: {
-    id: number;
-    username: string;
-    email: string;
-  }[];
-  educator_user?: {
-    id: number;
-    username: string;
-    email: string;
-  } | null;
+  avatar?: Avatar | null;
+  class?: Class | null;
+  parent_users?: ParentUser[];
+  educator_user?: EducatorUser | null;
 }
 
 interface Pagination {
@@ -55,6 +61,18 @@ interface Pagination {
   total: number;
 }
 
+// -------------------- Helper --------------------
+const getAvatarUrl = (avatar?: Avatar | null) => {
+  if (!avatar) return "/default-avatar.png";
+  const url =
+    avatar.formats?.thumbnail?.url ||
+    avatar.formats?.small?.url ||
+    avatar.url ||
+    "";
+  return url.startsWith("http") ? url : baseURL + url;
+};
+
+// -------------------- Component --------------------
 export default function ResidentList() {
   const router = useRouter();
   const params = useParams();
@@ -69,11 +87,13 @@ export default function ResidentList() {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
-    pageSize: 4, // residents per page
+    pageSize: 4,
     pageCount: 1,
     total: 0,
   });
-  const [openModalResidentId, setOpenModalResidentId] = useState<string | null>(null);
+  const [openModalResidentId, setOpenModalResidentId] = useState<string | null>(
+    null
+  );
 
   const fetchResidents = async (locale: "en" | "km") => {
     try {
@@ -86,15 +106,13 @@ export default function ResidentList() {
         return;
       }
 
-      const role = loggedUser.role.type;
-      console.log("role",role)
-      console.log(loggedUser);
-      const branchDocumentId = loggedUser.branch.documentId;
+      const role = loggedUser.role?.type;
+      const branchDocumentId = loggedUser.branch?.documentId;
       const userDocumentId = loggedUser.documentId;
 
       let url = `${baseURL}/api/profile-residents?populate=avatar&populate=class&filters[branch][documentId][$eq]=${branchDocumentId}`;
+
       if (role === "educator") {
-        console.log("I am an educator.")
         url = `${baseURL}/api/profile-residents?populate=branch&populate=avatar&populate=class&populate=educator_user&filters[educator_user][documentId][$eq]=${userDocumentId}`;
       } else if (role === "parent") {
         url = `${baseURL}/api/profile-residents?populate=avatar&populate=class&populate=parent_user&filters[parent_user][documentId][$eq]=${userDocumentId}`;
@@ -113,15 +131,10 @@ export default function ResidentList() {
 
       const data = await res.json();
 
-      const allResidents: Resident[] = data.data.map((r: any) => {
-        let residentClass;
-        if (r.class?.data) {
-          const cls = r.class.data;
-          residentClass = {
-            id: cls.id,
-            name: cls.attributes?.name || cls.name || "No Class",
-          };
-        } else if (r.class) {
+      // Flattened API response
+      const allResidents: Resident[] = data.data.map((r: Resident) => {
+        let residentClass: Class | null = null;
+        if (r.class) {
           residentClass = {
             id: r.class.id,
             name: r.class.name || "No Class",
@@ -158,7 +171,7 @@ export default function ResidentList() {
     fetchResidents(locale);
   }, [locale]);
 
-  // Filter residents based on class and search term
+  // Filter residents
   useEffect(() => {
     let filtered = residents;
 
@@ -175,13 +188,16 @@ export default function ResidentList() {
     setFilteredResidents(filtered);
   }, [residents, selectedClass, searchTerm]);
 
-  // Update pagination when filteredResidents change
+  // Pagination update
   useEffect(() => {
     setPagination((p) => ({
       ...p,
       pageCount: Math.ceil(filteredResidents.length / p.pageSize) || 1,
       total: filteredResidents.length,
-      page: Math.min(p.page, Math.ceil(filteredResidents.length / p.pageSize) || 1),
+      page: Math.min(
+        p.page,
+        Math.ceil(filteredResidents.length / p.pageSize) || 1
+      ),
     }));
   }, [filteredResidents]);
 
@@ -190,13 +206,15 @@ export default function ResidentList() {
     pagination.page * pagination.pageSize
   );
 
-  if (loading) return <p className="p-6 text-center">Loading residents...</p>;
-
   const classOptions = Array.from(
-    new Set(residents.map((r) => r.class?.name).filter((name): name is string => !!name))
+    new Set(
+      residents.map((r) => r.class?.name).filter((n): n is string => !!n)
+    )
   );
 
   const toggleLocale = () => setLocale(locale === "en" ? "km" : "en");
+
+  if (loading) return <p className="p-6 text-center">Loading residents...</p>;
 
   return (
     <div className="min-h-screen py-10 bg-gray-50">
@@ -210,14 +228,15 @@ export default function ResidentList() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-
           <div className="flex items-center gap-3">
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
               className="border px-4 py-2 w-full sm:w-48 rounded-lg border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
             >
-              <option value="All">{locale === "en" ? "All Classes" : "គ្រប់ថ្នាក់"}</option>
+              <option value="All">
+                {locale === "en" ? "All Classes" : "គ្រប់ថ្នាក់"}
+              </option>
               {classOptions.map((cls, idx) => (
                 <option key={idx} value={cls}>
                   {cls}
@@ -240,20 +259,25 @@ export default function ResidentList() {
                   alt={resident.full_name}
                   width={70}
                   height={70}
-                className="rounded-full border-2 border-blue-400"
+                  className="rounded-full border-2 border-blue-400"
                 />
                 <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4">
-                  <p className="font-semibold text-black text-lg sm:text-xl">{resident.full_name}</p>
+                  <p className="font-semibold text-black text-lg sm:text-xl">
+                    {resident.full_name}
+                  </p>
                   {resident.nick_name && (
                     <p className="text-gray-500 text-sm sm:text-base italic">
                       ({resident.nick_name})
                     </p>
                   )}
                   {resident.country && (
-                    <p className="text-gray-200 text-sm sm:text-base italic">({resident.country})</p>
+                    <p className="text-gray-200 text-sm sm:text-base italic">
+                      ({resident.country})
+                    </p>
                   )}
                   <p className="text-gray-400 text-sm sm:text-base italic">
-                    {resident.class?.name || (locale === "en" ? "No Class" : "គ្មានថ្នាក់")}
+                    {resident.class?.name ||
+                      (locale === "en" ? "No Class" : "គ្មានថ្នាក់")}
                   </p>
                 </div>
               </div>
@@ -295,17 +319,21 @@ export default function ResidentList() {
             {locale === "en" ? "Previous" : "ថយក្រោយ"}
           </button>
 
-          {Array.from({ length: pagination.pageCount }, (_, i) => i + 1).map((pg) => (
-            <button
-              key={pg}
-              onClick={() => setPagination((p) => ({ ...p, page: pg }))}
-              className={`px-3 py-1 rounded-lg border ${
-                pg === pagination.page ? "bg-blue-600 text-white" : "bg-white hover:bg-gray-100"
-              }`}
-            >
-              {pg}
-            </button>
-          ))}
+          {Array.from({ length: pagination.pageCount }, (_, i) => i + 1).map(
+            (pg) => (
+              <button
+                key={pg}
+                onClick={() => setPagination((p) => ({ ...p, page: pg }))}
+                className={`px-3 py-1 rounded-lg border ${
+                  pg === pagination.page
+                    ? "bg-blue-600 text-white"
+                    : "bg-white hover:bg-gray-100"
+                }`}
+              >
+                {pg}
+              </button>
+            )
+          )}
 
           <button
             disabled={pagination.page === pagination.pageCount}

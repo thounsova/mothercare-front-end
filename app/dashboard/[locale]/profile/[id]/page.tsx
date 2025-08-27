@@ -7,24 +7,21 @@ import Link from "next/link";
 
 const baseURL = "https://energized-fireworks-cc618580b1.strapiapp.com";
 
-// ✅ Helper: Avatar
-const getAvatarUrl = (avatar?: any) => {
-  if (!avatar) return "/default-avatar.png";
-  const av = Array.isArray(avatar) ? avatar[0] : avatar;
-  const url =
-    av?.formats?.thumbnail?.url ||
-    av?.formats?.small?.url ||
-    av?.url ||
-    "/default-avatar.png";
-  return url.startsWith("http") ? url : baseURL + url;
-};
+// ✅ Types
+interface MediaFile {
+  id: number;
+  name?: string;
+  url: string;
+  formats?: {
+    thumbnail?: { url: string };
+    small?: { url: string };
+  };
+}
 
-// ✅ Helper: File URL
-const getFileUrl = (file?: any) => {
-  if (!file) return "";
-  const url = file.url;
-  return url?.startsWith("http") ? url : baseURL + url;
-};
+interface ClassInfo {
+  id: number;
+  name: string;
+}
 
 interface Resident {
   id: number;
@@ -38,12 +35,9 @@ interface Resident {
   address_parents?: string;
   address_kinds?: string;
   number?: string;
-  avatar?: any | any[];
+  avatar?: MediaFile | MediaFile[];
   comments?: string;
-  class?: {
-    id: number;
-    name: string;
-  };
+  class?: ClassInfo | null;
 }
 
 interface Medical {
@@ -52,16 +46,34 @@ interface Medical {
   medication?: string;
   doctor?: string;
   date_of_check?: string;
-  document?: any[];
-  prescription?: any[];
+  document?: MediaFile[];
+  prescription?: MediaFile[];
 }
+
+// ✅ Helper: Avatar
+const getAvatarUrl = (avatar?: MediaFile | MediaFile[]): string => {
+  if (!avatar) return "/default-avatar.png";
+  const av = Array.isArray(avatar) ? avatar[0] : avatar;
+  const url =
+    av?.formats?.thumbnail?.url ||
+    av?.formats?.small?.url ||
+    av?.url ||
+    "/default-avatar.png";
+  return url.startsWith("http") ? url : baseURL + url;
+};
+
+// ✅ Helper: File URL
+const getFileUrl = (file?: MediaFile): string => {
+  if (!file) return "";
+  return file.url.startsWith("http") ? file.url : baseURL + file.url;
+};
 
 export default function ResidentProfile() {
   const params = useParams();
   const router = useRouter();
   const documentId = params.id as string;
 
-  const [locale, setLocale] = useState<"en" | "km">("en");
+  const [locale] = useState<"en" | "km">("en"); // Removed unused setLocale
   const [resident, setResident] = useState<Resident | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -69,8 +81,6 @@ export default function ResidentProfile() {
   const [medicalList, setMedicalList] = useState<Medical[]>([]);
   const [loadingMedical, setLoadingMedical] = useState(false);
   const [showMedical, setShowMedical] = useState(false);
-
-  const toggleLocale = () => setLocale((prev) => (prev === "en" ? "km" : "en"));
 
   // ✅ Fetch Resident
   useEffect(() => {
@@ -97,7 +107,9 @@ export default function ResidentProfile() {
         const data = await res.json();
         if (data.data?.length > 0) {
           const r = data.data[0];
-          const avatar = r.avatar?.data || r.avatar;
+
+          const avatarData: MediaFile | MediaFile[] | undefined =
+            r.avatar?.data || r.avatar;
 
           setResident({
             id: r.id,
@@ -111,7 +123,7 @@ export default function ResidentProfile() {
             address_parents: r.address_parents,
             address_kinds: r.address_kinds,
             number: r.number,
-            avatar,
+            avatar: avatarData,
             comments: r.comments,
             class: r.class?.data
               ? { id: r.class.data.id, name: r.class.data.name }
@@ -144,7 +156,7 @@ export default function ResidentProfile() {
       );
 
       const data = await res.json();
-      const medicals = data.data?.medical_informations || [];
+      const medicals: Medical[] = data.data?.medical_informations || [];
       setMedicalList(medicals);
       setShowMedical(true);
     } catch (err) {
@@ -167,7 +179,6 @@ export default function ResidentProfile() {
       </p>
     );
 
-  // ✅ Resident details array with localization
   const detailsData = [
     { label: locale === "en" ? "Date of Birth" : "ថ្ងៃកំណើត", value: resident.date_of_birth },
     { label: locale === "en" ? "Gender" : "ភេទ", value: resident.gender },
@@ -185,13 +196,6 @@ export default function ResidentProfile() {
         <h2 className="text-2xl sm:text-3xl font-bold text-gray-800">
           {locale === "en" ? "Resident Profile" : "ប្រវត្តិរូបសិស្ស"}
         </h2>
-
-        {/* <button
-          onClick={toggleLocale}
-          className="flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full border border-gray-300 bg-white text-gray-800 shadow-sm hover:shadow-md hover:bg-gray-100 transition-all duration-300 font-medium text-sm sm:text-base"
-        >
-          {locale === "en" ? "🇰🇭 Khmer" : "🇬🇧 English"}
-        </button> */}
       </div>
 
       {/* Profile Section */}
@@ -260,7 +264,7 @@ export default function ResidentProfile() {
       </div>
 
       {/* ✅ Medical Modal */}
-   {showMedical && (
+      {showMedical && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white w-full max-w-3xl rounded-3xl shadow-xl p-6 relative flex flex-col max-h-[90vh] overflow-y-auto">
             <button
@@ -321,46 +325,46 @@ export default function ResidentProfile() {
                     </div>
 
                     {/* Documents */}
-                      {m.document?.length ? (
-                        <div className="mt-4">
-                          <b>📄 {locale === "en" ? "Documents" : "ឯកសារ"}:</b>
-                          <ul className="list-disc pl-5 text-blue-600">
-                            {m.document.map((doc: any) => (
-                              <li key={doc.id}>
-                                <a
-                                  href={getFileUrl(doc)}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="underline hover:text-blue-800"
-                                >
-                                  {doc.name || (locale === "en" ? "Document" : "ឯកសារ")}
-                                </a>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
+                    {m.document?.length ? (
+                      <div className="mt-4">
+                        <b>📄 {locale === "en" ? "Documents" : "ឯកសារ"}:</b>
+                        <ul className="list-disc pl-5 text-blue-600">
+                          {m.document.map((doc) => (
+                            <li key={doc.id}>
+                              <a
+                                href={getFileUrl(doc)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="underline hover:text-blue-800"
+                              >
+                                {doc.name || (locale === "en" ? "Document" : "ឯកសារ")}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
 
-                      {/* Prescriptions */}
-                      {m.prescription?.length ? (
-                        <div className="mt-4">
-                          <b>💊 {locale === "en" ? "Prescriptions" : "វេជ្ជបញ្ជា"}:</b>
-                          <ul className="list-disc pl-5 text-blue-600">
-                            {m.prescription.map((pres: any) => (
-                              <li key={pres.id}>
-                                <a
-                                  href={getFileUrl(pres)}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="underline hover:text-blue-800"
-                                >
-                                  {pres.name || (locale === "en" ? "Prescription" : "វេជ្ជបញ្ជា")}
-                                </a>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
+                    {/* Prescriptions */}
+                    {m.prescription?.length ? (
+                      <div className="mt-4">
+                        <b>💊 {locale === "en" ? "Prescriptions" : "វេជ្ជបញ្ជា"}:</b>
+                        <ul className="list-disc pl-5 text-blue-600">
+                          {m.prescription.map((pres) => (
+                            <li key={pres.id}>
+                              <a
+                                href={getFileUrl(pres)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="underline hover:text-blue-800"
+                              >
+                                {pres.name || (locale === "en" ? "Prescription" : "វេជ្ជបញ្ជា")}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
                   </div>
                 ))}
               </div>

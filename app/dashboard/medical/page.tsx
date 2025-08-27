@@ -1,28 +1,55 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Image from "next/image";
 
 const baseURL = "https://energized-fireworks-cc618580b1.strapiapp.com";
 
-// ✅ Helper to get avatar URL
-const getAvatarUrl = (avatar?: any) => {
-  if (!avatar) return "/default-avatar.png";
-  const url =
-    avatar.formats?.thumbnail?.url ||
-    avatar.formats?.small?.url ||
-    avatar.url ||
-    "";
-  return url.startsWith("http") ? url : baseURL + url;
-};
+// ✅ Types
+interface MediaFile {
+  id: number;
+  name?: string;
+  url: string;
+  formats?: {
+    thumbnail?: { url: string };
+    small?: { url: string };
+  };
+}
 
-// ✅ Helper to get file URL
-const getFileUrl = (file?: any) => {
-  if (!file) return "";
-  const url = file.url;
-  return url?.startsWith("http") ? url : baseURL + url;
-};
+interface ClassInfo {
+  id: number;
+  name: string;
+}
+
+interface ResidentInfo {
+  id: number;
+  documentId: string;
+  full_name: string;
+  avatar?: MediaFile | MediaFile[];
+  class?: ClassInfo;
+}
+
+interface MedicalInfo {
+  id: number;
+  diagnosis?: string;
+  medication?: string;
+  doctor?: string;
+  date_of_check?: string;
+  document?: MediaFile[];
+  prescription?: MediaFile[];
+}
+
+interface ResidentAPI {
+  id: number;
+  documentId: string;
+  full_name: string;
+  avatar?: MediaFile | { data?: MediaFile } | MediaFile[];
+  class?: { id: number; name: string } | null;
+  parent_users?: { id: number }[];
+  educator_user?: { id: number } | null;
+  medical_informations?: MedicalInfo[];
+}
 
 interface Medical {
   id: number;
@@ -30,31 +57,36 @@ interface Medical {
   medication?: string;
   doctor?: string;
   date_of_check?: string;
-  document?: any[];
-  prescription?: any[];
-  resident: {
-    id: number;
-    documentId: string;
-    full_name: string;
-    avatar?: any;
-    class?: { id: number; name: string };
-  };
+  document?: MediaFile[];
+  prescription?: MediaFile[];
+  resident: ResidentInfo;
 }
+
+// ✅ Helper to get avatar URL
+const getAvatarUrl = (avatar?: MediaFile | MediaFile[]): string => {
+  if (!avatar) return "/default-avatar.png";
+  const av = Array.isArray(avatar) ? avatar[0] : avatar;
+  const url = av?.formats?.thumbnail?.url || av?.formats?.small?.url || av?.url || "";
+  return url.startsWith("http") ? url : baseURL + url;
+};
+
+// ✅ Helper to get file URL
+const getFileUrl = (file?: MediaFile): string => {
+  if (!file) return "";
+  return file.url.startsWith("http") ? file.url : baseURL + file.url;
+};
 
 export default function MedicalPage() {
   const router = useRouter();
   const params = useParams();
-  const [locale, setLocale] = useState<"en" | "km">(
-    (params.locale as "en" | "km") || "en"
-  );
+  const locale = ((params.locale as "en" | "km") || "en") as "en" | "km";
   const [medicalList, setMedicalList] = useState<Medical[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMedical, setSelectedMedical] = useState<Medical | null>(null);
 
-  const fetchMedical = async () => {
+  const fetchMedical = useCallback(async () => {
     try {
       setLoading(true);
-
       const token = localStorage.getItem("token");
       const loggedUser = JSON.parse(localStorage.getItem("user") || "{}");
 
@@ -63,33 +95,33 @@ export default function MedicalPage() {
         return;
       }
 
-      const residentRes = await fetch(
+      const res = await fetch(
         `${baseURL}/api/profile-residents?populate=avatar&populate=class&populate=medical_informations.document&populate=medical_informations.prescription&populate=parent_users&populate=educator_user`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      const residentData = await residentRes.json();
 
-      const myResidents = residentData.data.filter((r: any) => {
-        const isParent =
-          r.parent_users?.some((p: any) => p.id === loggedUser.id) ?? false;
+      const residentData: { data: ResidentAPI[] } = await res.json();
+
+      const myResidents = residentData.data.filter((r: ResidentAPI) => {
+        const isParent = r.parent_users?.some((p) => p.id === loggedUser.id) ?? false;
         const isEducator = r.educator_user?.id === loggedUser.id;
         return isParent || isEducator;
       });
 
-      const allMedical: Medical[] = myResidents.flatMap((r: any) =>
-        (r.medical_informations || []).map((m: any) => ({
+      const allMedical: Medical[] = myResidents.flatMap((r: ResidentAPI) =>
+        (r.medical_informations || []).map((m) => ({
           id: m.id,
           diagnosis: m.diagnosis,
           medication: m.medication,
           doctor: m.doctor,
           date_of_check: m.date_of_check,
-          document: m.document,
-          prescription: m.prescription,
+          document: m.document || [],
+          prescription: m.prescription || [],
           resident: {
             id: r.id,
             documentId: r.documentId,
             full_name: r.full_name,
-            avatar: r.avatar,
+            avatar: r.avatar as MediaFile | MediaFile[],
             class: r.class ? { id: r.class.id, name: r.class.name } : undefined,
           },
         }))
@@ -101,14 +133,13 @@ export default function MedicalPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
 
   useEffect(() => {
     fetchMedical();
-  }, []);
+  }, [fetchMedical]);
 
-  if (loading)
-    return <p className="p-6 text-center">Loading medical info...</p>;
+  if (loading) return <p className="p-6 text-center">Loading medical info...</p>;
 
   return (
     <div className="p-6 relative">
@@ -124,7 +155,6 @@ export default function MedicalPage() {
         </p>
       )}
 
-      {/* ✅ Medical List Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {medicalList.map((m) => (
           <div
@@ -141,9 +171,7 @@ export default function MedicalPage() {
               />
               <div className="flex-1">
                 <p className="font-semibold text-lg">{m.resident.full_name}</p>
-                <p className="text-sm text-gray-500">
-                  {m.resident.class?.name || "No Class"}
-                </p>
+                <p className="text-sm text-gray-500">{m.resident.class?.name || "No Class"}</p>
               </div>
             </div>
             <button
@@ -156,11 +184,9 @@ export default function MedicalPage() {
         ))}
       </div>
 
-      {/* ✅ Modal Popup */}
       {selectedMedical && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white max-w-2xl w-full rounded-3xl shadow-xl p-6 relative flex flex-col max-h-[90vh]">
-            {/* Close Button */}
             <button
               className="absolute top-4 right-4 text-gray-500 hover:text-black text-2xl"
               onClick={() => setSelectedMedical(null)}
@@ -168,7 +194,6 @@ export default function MedicalPage() {
               ✕
             </button>
 
-            {/* Header */}
             <div className="flex flex-col sm:flex-row items-center gap-4 mb-4 sm:mb-6 border-b pb-4">
               <Image
                 src={getAvatarUrl(selectedMedical.resident.avatar)}
@@ -178,18 +203,12 @@ export default function MedicalPage() {
                 className="rounded-full border-2 border-blue-400"
               />
               <div className="text-center sm:text-left">
-                <h2 className="text-2xl sm:text-3xl font-bold">
-                  {selectedMedical.resident.full_name}
-                </h2>
-                <p className="text-gray-500 text-sm">
-                  {selectedMedical.resident.class?.name || "No Class"}
-                </p>
+                <h2 className="text-2xl sm:text-3xl font-bold">{selectedMedical.resident.full_name}</h2>
+                <p className="text-gray-500 text-sm">{selectedMedical.resident.class?.name || "No Class"}</p>
               </div>
             </div>
 
-            {/* Scrollable Content */}
             <div className="overflow-y-auto flex-1 space-y-6 pr-2">
-              {/* Form-like Fields */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {[
                   { label: locale === "en" ? "Diagnosis" : "រោគវិនិច្ឆ័យ", value: selectedMedical.diagnosis },
@@ -209,19 +228,13 @@ export default function MedicalPage() {
                 ))}
               </div>
 
-              {/* Documents */}
               {selectedMedical.document && selectedMedical.document.length > 0 && (
                 <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
                   <h3 className="font-semibold text-gray-700 mb-2">📄 Documents:</h3>
                   <ul className="list-disc pl-5 text-blue-600 space-y-1">
-                    {selectedMedical.document.map((doc: any) => (
+                    {selectedMedical.document.map((doc) => (
                       <li key={doc.id}>
-                        <a
-                          href={getFileUrl(doc)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline hover:text-blue-800"
-                        >
+                        <a href={getFileUrl(doc)} target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-800">
                           {doc.name || "Document"}
                         </a>
                       </li>
@@ -230,19 +243,13 @@ export default function MedicalPage() {
                 </div>
               )}
 
-              {/* Prescriptions */}
               {selectedMedical.prescription && selectedMedical.prescription.length > 0 && (
                 <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
                   <h3 className="font-semibold text-gray-700 mb-2">💊 Prescriptions:</h3>
                   <ul className="list-disc pl-5 text-blue-600 space-y-1">
-                    {selectedMedical.prescription.map((pres: any) => (
+                    {selectedMedical.prescription.map((pres) => (
                       <li key={pres.id}>
-                        <a
-                          href={getFileUrl(pres)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline hover:text-blue-800"
-                        >
+                        <a href={getFileUrl(pres)} target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-800">
                           {pres.name || "Prescription"}
                         </a>
                       </li>

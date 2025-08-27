@@ -6,8 +6,58 @@ import { Eye } from "lucide-react";
 
 const baseURL = "https://energized-fireworks-cc618580b1.strapiapp.com";
 
-// Helper to get avatar URL
-const getAvatarUrl = (avatar?: any) => {
+// ✅ Types
+interface MediaFile {
+  id: number;
+  name?: string;
+  url: string;
+  formats?: {
+    thumbnail?: { url: string };
+    small?: { url: string };
+  };
+}
+
+interface AssessmentFile {
+  id: number;
+  name?: string;
+  url: string;
+}
+
+interface Assessment {
+  id: number;
+  createdAt?: string;
+  assessment_file?: AssessmentFile[];
+}
+
+interface ClassInfo {
+  id: number;
+  name: string;
+}
+
+interface Resident {
+  id: number;
+  full_name: string;
+  avatar?: MediaFile;
+  class?: ClassInfo;
+  parent_users?: { id: number }[];
+  educator_user?: { id: number };
+  assessments?: Assessment[];
+}
+
+interface Report {
+  id: number;
+  date_of_upload?: string;
+  assessments: Assessment[];
+  resident: {
+    id: number;
+    full_name: string;
+    avatar?: MediaFile;
+    class?: ClassInfo;
+  };
+}
+
+// ✅ Helpers
+const getAvatarUrl = (avatar?: MediaFile): string => {
   if (!avatar) return "/default-avatar.png";
   const url =
     avatar.formats?.thumbnail?.url ||
@@ -17,38 +67,15 @@ const getAvatarUrl = (avatar?: any) => {
   return url.startsWith("http") ? url : baseURL + url;
 };
 
-// Helper to get file URL
-const getFileUrl = (file?: any) => {
-  if (!file) return "";
-  const url = file.url;
-  return url.startsWith("http") ? url : baseURL + url;
+const getFileUrl = (file?: AssessmentFile): string => {
+  if (!file?.url) return "";
+  return file.url.startsWith("http") ? file.url : baseURL + file.url;
 };
 
-interface AssessmentFile {
-  id: number;
-  name?: string;
-  url?: string;
-}
-
-interface Assessment {
-  id: number;
-  assessment_file?: AssessmentFile[];
-}
-
-interface Report {
-  id: number;
-  date_of_upload?: string;
-  assessments?: Assessment[];
-  resident: {
-    id: number;
-    full_name: string;
-    avatar?: any;
-    class?: { id: number; name: string };
-  };
-}
-
 export default function ReportsPage() {
-  const [locale, setLocale] = useState<"en" | "km">("en");
+  // ⚠️ setLocale មិនបានប្រើ → លុបចោល
+  // const [locale, setLocale] = useState<"en" | "km">("en");
+
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
@@ -68,16 +95,18 @@ export default function ReportsPage() {
 
       const data = await res.json();
 
-      // Filter residents where logged user is parent or educator
-      const myResidents = data.data.filter((r: any) => {
-        const isParent = r.parent_users?.some((p: any) => p.id === loggedUser.id) ?? false;
+      const residents: Resident[] = data.data;
+
+      // ✅ Filter residents
+      const myResidents = residents.filter((r) => {
+        const isParent = r.parent_users?.some((p) => p.id === loggedUser.id) ?? false;
         const isEducator = r.educator_user?.id === loggedUser.id;
         return isParent || isEducator;
       });
 
-      // Flatten assessments as reports
-      const allReports: Report[] = myResidents.flatMap((r: any) =>
-        (r.assessments || []).map((assess: any) => ({
+      // ✅ Flatten assessments
+      const allReports: Report[] = myResidents.flatMap((r) =>
+        (r.assessments || []).map((assess) => ({
           id: assess.id,
           date_of_upload: assess.createdAt,
           assessments: [assess],
@@ -85,7 +114,7 @@ export default function ReportsPage() {
             id: r.id,
             full_name: r.full_name,
             avatar: r.avatar,
-            class: r.class ? { id: r.class.id, name: r.class.name } : undefined,
+            class: r.class,
           },
         }))
       );
@@ -108,16 +137,6 @@ export default function ReportsPage() {
   return (
     <div className="min-h-screen py-10 bg-gray-50">
       <div className="w-full max-w-5xl mx-auto p-4 md:p-6">
-        {/* Top Bar */}
-        <div className="flex justify-end mb-6">
-          {/* <button
-            onClick={() => setLocale(locale === "en" ? "km" : "en")}
-            className="px-4 py-2 rounded-full border bg-white text-gray-800 shadow hover:bg-gray-100 transition"
-          >
-            {locale === "en" ? "🇰🇭 Khmer" : "🇬🇧 English"}
-          </button> */}
-        </div>
-
         {/* Assessments List */}
         <div className="space-y-4">
           {reports.map((report) => (
@@ -142,10 +161,10 @@ export default function ReportsPage() {
                   {report.resident.full_name}
                 </p>
                 <p className="text-gray-500 text-sm sm:text-base mt-1">
-                  {locale === "en" ? "Uploaded" : "បានបង្ហោះ"}: {report.date_of_upload}
+                  Uploaded: {report.date_of_upload}
                 </p>
                 <p className="text-gray-400 text-xs sm:text-sm mt-0.5">
-                  {report.resident.class?.name || (locale === "en" ? "No Class" : "គ្មានថ្នាក់")}
+                  {report.resident.class?.name || "No Class"}
                 </p>
               </div>
 
@@ -156,7 +175,7 @@ export default function ReportsPage() {
                   className="flex items-center justify-center gap-2 mt-5 px-4 py-2 rounded-lg bg-blue-100 text-blue-800 text-sm sm:text-base hover:bg-blue-200 transition"
                 >
                   <Eye size={18} />
-                  {locale === "en" ? "View" : "មើល"}
+                  View
                 </button>
               </div>
             </div>
@@ -164,7 +183,7 @@ export default function ReportsPage() {
 
           {reports.length === 0 && (
             <p className="text-center text-gray-500 mt-6 text-sm sm:text-base">
-              {locale === "en" ? "No assessments available" : "មិនមានការវាយតម្លៃទេ"}
+              No assessments available
             </p>
           )}
         </div>
@@ -194,18 +213,18 @@ export default function ReportsPage() {
               <div>
                 <h2 className="text-3xl font-bold">{selectedReport.resident.full_name}</h2>
                 <p className="text-gray-500">
-                  {locale === "en" ? "Class" : "ថ្នាក់"}: {selectedReport.resident.class?.name || (locale === "en" ? "No Class" : "គ្មានថ្នាក់")}
+                  Class: {selectedReport.resident.class?.name || "No Class"}
                 </p>
               </div>
             </div>
 
-            {/* Assessment Files Section */}
+            {/* Assessment Files */}
             {selectedReport.assessments?.length ? (
               <div className="border border-gray-300 rounded-lg p-4 bg-gray-50 mb-6">
                 <h3 className="font-semibold text-gray-700 mb-2">📝 Assessment Files</h3>
                 {selectedReport.assessments.map((assess) => (
                   <ul key={assess.id} className="list-disc pl-5 text-blue-600 mb-2">
-                    {assess.assessment_file?.map((f: any) => (
+                    {assess.assessment_file?.map((f) => (
                       <li key={f.id}>
                         <a
                           href={getFileUrl(f)}
@@ -221,7 +240,7 @@ export default function ReportsPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500">{locale === "en" ? "No files available" : "គ្មានឯកសារ"}</p>
+              <p className="text-gray-500">No files available</p>
             )}
           </div>
         </div>
