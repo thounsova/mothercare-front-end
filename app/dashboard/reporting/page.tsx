@@ -168,7 +168,7 @@ export default function ReportsPage() {
           {reports.map((report) => (
             <div
               key={report.id}
-              className="bg-white rounded-2xl shadow-md border border-gray-200 p-4 sm:p-6 flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6"
+              className="bg-white rounded-2xl shadow-md border border-blue-400 p-4 sm:p-6 flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6"
             >
               {/* Avatar */}
               <div className="flex-shrink-0">
@@ -177,7 +177,7 @@ export default function ReportsPage() {
                   alt={report.resident.full_name}
                   width={70}
                   height={70}
-                  className="rounded-full border-2 border-blue-400"
+                  className="rounded-full mt-3 border-2 border-blue-400"
                 />
               </div>
 

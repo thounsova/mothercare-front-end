@@ -246,7 +246,7 @@ export default function ResidentProfile() {
       <div className="flex gap-4 mt-8">
         <button
           onClick={fetchMedical}
-          className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700"
+          className="flex-1  bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700"
         >
           {loadingMedical
             ? locale === "en"
