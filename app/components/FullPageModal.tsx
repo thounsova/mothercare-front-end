@@ -1,180 +1,226 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import ProgramStatus from "@/app/components/ProgramStatusSelect";
+import { useEffect, useState } from "react";
 
-const baseURL = "https://energized-fireworks-cc618580b1.strapiapp.com";
+const BASEURL = "https://energized-fireworks-cc618580b1.strapiapp.com";
+
+interface KidField {
+  kidFieldId?: string;
+  programSkillId: string;
+  programSkillName: string;
+  programStatusId?: string;
+  comments?: string;
+  score?: number;
+}
+
+interface ProgramSkill {
+  programSkillId: string;
+  programSkillName: string;
+}
+
+interface ApiProgramSkill {
+  documentId: string;
+  name: string;
+}
+
+interface ApiDataItem {
+  program_skills?: ApiProgramSkill[];
+}
+
+interface ApiResponse {
+  data?: ApiDataItem[];
+}
+
+function mapToProgramSkills(res: ApiResponse): ProgramSkill[] {
+  const items = res.data ?? [];
+  return items.flatMap((item) =>
+    (item.program_skills ?? []).map((s) => ({
+      programSkillId: s.documentId?.trim() ?? "",
+      programSkillName: s.name?.trim() ?? "",
+    }))
+  );
+}
 
 interface FullPageModalProps {
+  kidDocumentId: string;
   isOpen: boolean;
   onClose: () => void;
-  kidDocumentId: string;
 }
 
-// Skill shape used inside component state
-interface KidSkill {
-  id: number;
-  name: string;
-  programStatusId?: string;
-  comments?: string;
-  score?: number;
-}
-
-// Strapi response types
-interface ProgramSkillResponse {
-  id: number;
-  name: string;
-  programStatusId?: string;
-  comments?: string;
-  score?: number;
-}
-
-interface ResidentProgramResponse {
-  id: number;
-  program_skills: ProgramSkillResponse[];
-}
-
-export const FullPageModal: React.FC<FullPageModalProps> = ({
-  isOpen,
-  onClose,
-  kidDocumentId,
-}) => {
-  const [skills, setSkills] = useState<KidSkill[]>([]);
+export default function FullPageModal({ kidDocumentId, isOpen, onClose }: FullPageModalProps) {
+  const [programSkills, setProgramSkills] = useState<ProgramSkill[]>([]);
+  const [kidFields, setKidFields] = useState<KidField[]>([]);
   const [loading, setLoading] = useState(false);
+  const today = new Date().toISOString().slice(0, 10);
+
+  const getToken = () => localStorage.getItem("educator_token");
 
   useEffect(() => {
-    if (!isOpen || !kidDocumentId) return;
+    if (!isOpen) return;
 
-    const fetchProgramSkills = async () => {
+    const fetchSkills = async () => {
+      const token = getToken();
+      if (!token) return;
+
       setLoading(true);
       try {
-        // Get token from localStorage
-        const token = localStorage.getItem("token");
-        if (!token) throw new Error("No token found in localStorage");
-
         const res = await fetch(
-          `${baseURL}/api/resident-programs?filters[kid_profile][documentId][$eq]=${kidDocumentId}&populate=program_skills`,
+          `${BASEURL}/api/resident-programs?filters[kid_profile][documentId][$eq]=${kidDocumentId}&populate=program_skills`,
           {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            headers: { Authorization: `Bearer ${token}` },
           }
         );
-
-        if (!res.ok) throw new Error("Failed to fetch program skills");
-
-        const data: { data: ResidentProgramResponse[] } = await res.json();
-
-        const resident = data.data?.[0];
-
-        const skillsData: KidSkill[] =
-          resident?.program_skills?.map((item) => ({
-            id: item.id,
-            name: item.name,
-            programStatusId: item.programStatusId,
-            comments: item.comments,
-            score: item.score,
-          })) || [];
-
-        setSkills(skillsData);
-      } catch (error) {
-        console.error("Error fetching program skills:", error);
+        const data: ApiResponse = await res.json();
+        const skills = mapToProgramSkills(data);
+        setProgramSkills(skills);
+      } catch (err) {
+        console.error(err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchProgramSkills();
+    fetchSkills();
   }, [isOpen, kidDocumentId]);
+
+  const getExisting = (skillId: string) => kidFields.find((f) => f.programSkillId === skillId);
+
+  const handleSave = async (skill: ProgramSkill, data: { status?: string; comments?: string }) => {
+    const token = getToken();
+    if (!token) {
+      alert("No token found, login required");
+      return;
+    }
+
+    const payload = {
+      data: {
+        activity_date: today,
+        comments: data.comments,
+        program_status: data.status,
+        validated_by: "Educator",
+        program_skill: skill.programSkillId,
+        kid_profile: kidDocumentId,
+      },
+    };
+
+    try {
+      const existing = getExisting(skill.programSkillId);
+      const res = await fetch(`${BASEURL}/api/resident-fields`, {
+        method: existing ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      const saved = await res.json();
+      setKidFields((prev) => {
+        const idx = prev.findIndex((f) => f.programSkillId === skill.programSkillId);
+        if (idx >= 0) {
+          const copy = [...prev];
+          copy[idx] = { ...copy[idx], ...saved };
+          return copy;
+        }
+        return [...prev, saved];
+      });
+      alert(existing ? "Updated" : "Saved");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save");
+    }
+  };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Overlay */}
-      <div
-        className="absolute inset-0 bg-black bg-opacity-50"
-        onClick={onClose}
-      />
-
-      {/* Modal Content */}
-      <div className="relative bg-white w-full h-full sm:h-[90vh] sm:w-[90vw] rounded-none sm:rounded-2xl shadow-lg overflow-y-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center px-6 py-4 border-b">
-          <h2 className="text-xl sm:text-2xl font-bold text-black">
-            Full Page Modal: {kidDocumentId}
-          </h2>
-          <button
-            className="text-gray-500 hover:text-red-600 text-2xl"
-            onClick={onClose}
-          >
-            ✕
-          </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white w-full max-w-3xl max-h-[80vh] overflow-auto rounded-xl p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold">Program Skills — {today}</h2>
+          <button className="text-xl text-gray-500 font-bold" onClick={onClose}>✕</button>
         </div>
 
-        {/* Body with Form */}
-        <div className="p-6 space-y-4">
-          {loading ? (
-            <p className="text-gray-500">Loading skills...</p>
-          ) : skills.length === 0 ? (
-            <p className="text-gray-500">No skills found for this kid.</p>
-          ) : (
-            skills.map((skill) => (
-              <form
-                key={skill.id}
-                className="flex flex-col md:flex-row items-start md:items-center gap-4 p-4 border rounded-lg shadow-sm hover:shadow-md transition"
-              >
-                {/* Skill Name */}
-                <div className="flex-1 min-w-[120px]">
-                  <label className="block text-gray-700 text-sm font-medium mb-1">
-                    Skill
-                  </label>
-                  <input
-                    type="text"
-                    value={skill.name}
-                    readOnly
-                    className="w-full border text-black rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                  />
-                </div>
-
-                {/* Status */}
-                <div className="flex-1 min-w-[120px]">
-                  <label className="block text-gray-700 text-sm font-medium mb-1">
-                    Status
-                  </label>
-                  <ProgramStatus
-                    value={skill.programStatusId}
-                    className="text-sm text-black"
-                  />
-                </div>
-
-                {/* Comment */}
-                <div className="flex-1 min-w-[180px]">
-                  <label className="block text-gray-700 text-sm font-medium mb-1">
-                    Comment
-                  </label>
-                  <textarea
-                    rows={2}
-                    placeholder="Enter comment"
-                    className="w-full border text-black rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                    defaultValue={skill.comments}
-                  />
-                </div>
-
-                {/* Save Button */}
-                <div className="flex-shrink-0 mt-2 md:mt-0">
-                  <button
-                    type="button"
-                    className="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700 text-sm transition"
-                  >
-                    Save
-                  </button>
-                </div>
-              </form>
-            ))
-          )}
-        </div>
+        {loading ? (
+          <p>Loading...</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {programSkills.map((skill) => (
+              <SkillRow
+                key={skill.programSkillId}
+                skill={skill}
+                existing={getExisting(skill.programSkillId)}
+                onSave={(data) => handleSave(skill, data)}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
-};
+}
+
+function SkillRow({
+  skill,
+  existing,
+  onSave,
+}: {
+  skill: ProgramSkill;
+  existing?: KidField;
+  onSave: (data: { status?: string; comments?: string }) => void;
+}) {
+  const [status, setStatus] = useState(existing?.programStatusId || "");
+  const [comments, setComments] = useState(existing?.comments || "");
+  const [busy, setBusy] = useState(false);
+
+  const options = [
+    { id: "ulx5u0guqb1darlr0091t60k", label: "Good" },
+    { id: "k530zojlwzjstmtvsyzb3eiu", label: "Medium" },
+    { id: "gvw2gb4la9idqrxplm424xjs", label: "Low" },
+    { id: "zj9fr3ijbnvmzqvyaonujca6", label: "?" },
+  ];
+
+  const save = async () => {
+    setBusy(true);
+    await onSave({ status: status || undefined, comments: comments || undefined });
+    setBusy(false);
+  };
+
+  return (
+    <div className="border p-4 rounded-lg shadow-sm hover:shadow-md transition">
+      <h3 className="text-lg font-semibold mb-2">{skill.programSkillName}</h3>
+      <div className="flex flex-wrap gap-3 mb-2 items-center">
+        {options.map((o) => (
+          <label key={o.id} className="inline-flex items-center gap-2">
+            <input
+              type="radio"
+              name={`status-${skill.programSkillId}`}
+              value={o.id}
+              checked={status === o.id}
+              onChange={(e) => setStatus(e.target.value)}
+              className="h-4 w-4"
+            />
+            <span>{o.label}</span>
+          </label>
+        ))}
+        <button type="button" className="text-xs text-gray-500 underline ml-2" onClick={() => setStatus("")}>
+          Clear
+        </button>
+      </div>
+
+      <textarea
+        className="border w-full p-2 rounded mb-2"
+        placeholder="Comments"
+        value={comments}
+        onChange={(e) => setComments(e.target.value)}
+      />
+
+      <button
+        onClick={save}
+        disabled={busy}
+        className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
+      >
+        {existing ? (busy ? "Updating…" : "Update") : busy ? "Saving…" : "Save"}
+      </button>
+    </div>
+  );
+}

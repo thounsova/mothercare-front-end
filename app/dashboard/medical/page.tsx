@@ -159,7 +159,7 @@ export default function MedicalPage() {
         {medicalList.map((m) => (
           <div
             key={m.id}
-            className="bg-white rounded-2xl shadow-md border border-gray-200 p-4 sm:p-6 flex flex-col justify-between"
+            className="bg-white rounded-2xl shadow-md border border-blue-400 p-4 sm:p-6 flex flex-col justify-between"
           >
             <div className="flex items-center gap-4 mb-4">
               <Image
