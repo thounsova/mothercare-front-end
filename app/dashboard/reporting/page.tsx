@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -98,6 +97,7 @@ export default function ReportsPage() {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [filterDate, setFilterDate] = useState("");
 
   const fetchReports = async () => {
     try {
@@ -157,68 +157,79 @@ export default function ReportsPage() {
     fetchReports();
   }, []);
 
+  // ✅ Apply date filter
+  const filteredReports = filterDate
+    ? reports.filter((r) =>
+        (r.date_of_upload || r.createdAt || "").startsWith(filterDate)
+      )
+    : reports;
+
   if (loading)
     return <p className="p-6 text-center text-gray-600">Loading reports...</p>;
 
   return (
-    <div className="min-h-screen py-10 bg-gray-50">
-      <div className="w-full max-w-5xl mx-auto p-4 md:p-6">
-        {/* Reports List */}
-        <div className="space-y-4">
-          {reports.map((report) => (
+    <div className="min-h-screen py-10  bg-gray-50">
+      <div className="w-full max-w-6xl mx-auto px-4 md:px-6">
+        {/* Filter Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+          <h1 className="text-2xl font-bold text-gray-800">Reports</h1>
+          <input
+            type="date"
+            value={filterDate}
+            onChange={(e) => setFilterDate(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400 w-full sm:w-auto"
+          />
+        </div>
+
+        {/* Reports Grid */}
+        <div className="grid gap-6  sm:grid-cols-2 lg:grid-cols-3">
+          {filteredReports.map((report) => (
             <div
               key={report.id}
-              className="bg-white rounded-2xl shadow-md border border-blue-400 p-4 sm:p-6 flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6"
+              className="bg-white rounded-2xl shadow-md border border-blue-500 p-5 flex flex-col items-center sm:items-start text-center sm:text-left hover:shadow-lg transition"
             >
               {/* Avatar */}
-              <div className="flex-shrink-0">
-                <Image
-                  src={getAvatarUrl(report.resident.avatar)}
-                  alt={report.resident.full_name}
-                  width={70}
-                  height={70}
-                  className="rounded-full mt-3 border-2 border-blue-400"
-                />
-              </div>
+              <Image
+                src={getAvatarUrl(report.resident.avatar)}
+                alt={report.resident.full_name}
+                width={80}
+                height={80}
+                className="rounded-full border-2 border-blue-400 mb-3"
+              />
 
-              {/* Resident Info */}
-              <div className="flex-1 w-full text-center sm:text-left">
-                <p className="font-semibold text-lg sm:text-xl text-gray-800 truncate">
-                  {report.resident.full_name}
-                </p>
-                <p className="text-gray-500 text-sm sm:text-base mt-1">
-                  Uploaded: {report.date_of_upload || report.createdAt}
-                </p>
-                <p className="text-gray-400 text-xs sm:text-sm mt-0.5">
-                  {report.resident.class?.name || "No Class"}
-                </p>
-              </div>
+              {/* Info */}
+              <h2 className="font-semibold text-lg text-gray-800 truncate">
+                {report.resident.full_name}
+              </h2>
+              <p className="text-gray-500 text-sm mt-1">
+                Uploaded: {report.date_of_upload || report.createdAt}
+              </p>
+              <p className="text-gray-400 text-xs mt-1">
+                {report.resident.class?.name || "No Class"}
+              </p>
 
-              {/* View Button */}
-              <div className="flex-shrink-0 mt-2 sm:mt-0">
-                <button
-                  onClick={() => setSelectedReport(report)}
-                  className="flex items-center justify-center gap-2 mt-5 px-4 py-2 rounded-lg bg-blue-100 text-blue-800 text-sm sm:text-base hover:bg-blue-200 transition"
-                >
-                  <Eye size={18} />
-                  View
-                </button>
-              </div>
+              {/* Button */}
+              <button
+                onClick={() => setSelectedReport(report)}
+                className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-500 text-white text-sm hover:bg-blue-600 transition"
+              >
+                <Eye size={16} /> View
+              </button>
             </div>
           ))}
-
-          {reports.length === 0 && (
-            <p className="text-center text-gray-500 mt-6 text-sm sm:text-base">
-              No reports available
-            </p>
-          )}
         </div>
+
+        {filteredReports.length === 0 && (
+          <p className="text-center text-gray-500 mt-10 text-sm">
+            No reports available for this date.
+          </p>
+        )}
       </div>
 
       {/* Modal */}
       {selectedReport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-opacity-50 p-4">
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-2xl h-[50vh] overflow-y-auto p-8 relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto p-8 relative">
             {/* Close Button */}
             <button
               onClick={() => setSelectedReport(null)}
@@ -237,7 +248,9 @@ export default function ReportsPage() {
                 className="rounded-full border-2 border-blue-400 object-cover"
               />
               <div>
-                <h2 className="text-3xl font-bold">{selectedReport.resident.full_name}</h2>
+                <h2 className="text-2xl font-bold text-gray-800">
+                  {selectedReport.resident.full_name}
+                </h2>
                 <p className="text-gray-500">
                   Class: {selectedReport.resident.class?.name || "No Class"}
                 </p>
@@ -246,9 +259,9 @@ export default function ReportsPage() {
 
             {/* Report Files */}
             {selectedReport.report_file?.length ? (
-              <div className="border border-gray-300 rounded-lg p-4 bg-gray-50 mb-6">
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <h3 className="font-semibold text-gray-700 mb-2">📄 Files</h3>
-                <ul className="list-disc pl-5 text-blue-600">
+                <ul className="list-disc pl-5 text-blue-600 space-y-1">
                   {selectedReport.report_file.map((f) => (
                     <li key={f.id}>
                       <a

@@ -84,6 +84,10 @@ export default function MedicalPage() {
   const [loading, setLoading] = useState(true);
   const [selectedMedical, setSelectedMedical] = useState<Medical | null>(null);
 
+  // ✅ State for filtering
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+
   const fetchMedical = useCallback(async () => {
     try {
       setLoading(true);
@@ -139,24 +143,50 @@ export default function MedicalPage() {
     fetchMedical();
   }, [fetchMedical]);
 
+  // ✅ Apply Date Filter
+  const filteredList = medicalList.filter((m) => {
+    if (!m.date_of_check) return false;
+    const checkDate = new Date(m.date_of_check).toISOString().split("T")[0];
+    if (startDate && checkDate < startDate) return false;
+    if (endDate && checkDate > endDate) return false;
+    return true;
+  });
+
   if (loading) return <p className="p-6 text-center">Loading medical info...</p>;
 
   return (
     <div className="p-6 relative">
-      <h1 className="text-3xl font-bold mb-8">
-        {locale === "en" ? "Medical Records" : "កំណត់ត្រាវេជ្ជសាស្ត្រ"}
+       <h1 className="text-3xl mt-2 sm:text-4xl font-bold text-gray-800 mb-8 text-center sm:text-left">
+        📋 Medical 
       </h1>
 
-      {medicalList.length === 0 && (
+      {/* ✅ Date Filter */}
+      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <div>
+          <label className="block text-sm font-semibold mb-1">
+            {locale === "en" ? "Start Date" : "ថ្ងៃចាប់ផ្តើម"}
+          </label>
+          <input
+            type="date"
+            className="border rounded-lg px-3 py-2"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+          />
+        </div>
+      
+      </div>
+
+      {filteredList.length === 0 && (
         <p className="text-gray-500 mb-4">
           {locale === "en"
-            ? "No medical records available for your residents."
-            : "មិនមានកំណត់ត្រាវេជ្ជសាស្ត្រ។"}
+            ? "No medical records available for selected dates."
+            : "មិនមានកំណត់ត្រាវេជ្ជសាស្ត្រសម្រាប់ថ្ងៃនេះ។"}
         </p>
       )}
 
+      {/* ✅ Medical List */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {medicalList.map((m) => (
+        {filteredList.map((m) => (
           <div
             key={m.id}
             className="bg-white rounded-2xl shadow-md border border-blue-400 p-4 sm:p-6 flex flex-col justify-between"
@@ -184,6 +214,7 @@ export default function MedicalPage() {
         ))}
       </div>
 
+      {/* ✅ Modal (unchanged) */}
       {selectedMedical && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white max-w-2xl w-full rounded-3xl shadow-xl p-6 relative flex flex-col max-h-[90vh]">
