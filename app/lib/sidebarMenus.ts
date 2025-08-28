@@ -17,6 +17,7 @@ export const sidebarMenus: Record<Role, { name: string; path: string }[]> = {
   ],
   parent: [
     { name: "Kids", path: "/dashboard/resident" },
+    { name: "Activity", path: "/dashboard/activity" },
     { name: "Medical", path: "/dashboard/medical" },
     { name: "Assessment", path: "/dashboard/assessment" },
 
