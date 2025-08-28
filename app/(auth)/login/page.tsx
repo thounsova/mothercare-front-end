@@ -124,7 +124,7 @@ export default function LoginForm() {
       } else if (roleName === "Educator") {
         router.push("/dashboard/resident");
       } else if (roleName === "Parent") {
-        router.push("/dashboard/parent");
+        router.push("/dashboard/resident");
       } else {
         router.push("/dashboard");
       }
